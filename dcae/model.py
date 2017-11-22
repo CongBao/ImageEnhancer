@@ -1,17 +1,13 @@
 """The model of CAE"""
 
-import os
-
 import keras
 from keras import backend as K
 from keras.callbacks import TensorBoard
 from keras.datasets import mnist, cifar10
-from keras.layers import Conv2D, Conv2DTranspose, Input, MaxPooling2D, UpSampling2D
+from keras.layers import Conv2D, Conv2DTranspose, Input
 from keras.models import Model
 
 import matplotlib.pyplot as plt
-
-from logger import Logger
 
 __author__ = 'Cong Bao'
 
@@ -35,19 +31,19 @@ def main():
     x_test = x_test.astype('float32') / 255.
 
     image = Input(shape=input_shape)
-    x = Conv2D(16, (3, 3), activation='relu', padding='same')(image)
-    x = MaxPooling2D(strides=2)(x)
-    x = Conv2D(32, (3, 3), activation='relu', padding='same')(x)
-    x = MaxPooling2D(strides=2)(x)
+    conv1 = Conv2D(16, (3, 3), activation='relu', padding='same')(image)
+    conv2 = Conv2D(16, (3, 3), activation='relu', padding='same', strides=(2, 2))(conv1)
+    conv3 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv2)
+    conv4 = Conv2D(32, (3, 3), activation='relu', padding='same', strides=(2, 2))(conv3)
 
-    x = Conv2DTranspose(32, (3, 3), activation='relu', padding='same')(x)
-    x = UpSampling2D()(x)
-    x = Conv2DTranspose(16, (3, 3), activation='relu', padding='same')(x)
-    x = UpSampling2D()(x)
-    out = Conv2DTranspose(channels, (3, 3), activation='sigmoid', padding='same')(x)
+    deconv4 = Conv2DTranspose(32, (3, 3), activation='relu', padding='same')(conv4)
+    deconv3 = Conv2DTranspose(32, (3, 3), activation='relu', padding='same', strides=(2, 2))(deconv4)
+    deconv2 = Conv2DTranspose(16, (3, 3), activation='relu', padding='same')(deconv3)
+    deconv1 = Conv2DTranspose(16, (3, 3), activation='relu', padding='same', strides=(2, 2))(deconv2)
+    out = Conv2DTranspose(channels, (3, 3), activation='sigmoid', padding='same')(deconv1)
     ae = Model(image, out)
     ae.compile(keras.optimizers.Adam(), keras.losses.binary_crossentropy)
-    ae.fit(x_train, x_train, 128, 50, [TensorBoard('./graphs')], validation_data=(x_test, x_test))
+    ae.fit(x_train, x_train, 128, 50, 1, [TensorBoard('./graphs')], validation_data=(x_test, x_test))
 
     decoded_img = ae.predict(x_test)
     plt.figure(facecolor='white')
