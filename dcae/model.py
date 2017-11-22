@@ -34,10 +34,6 @@ def main():
     x_train = x_train.astype('float32') / 255.
     x_test = x_test.astype('float32') / 255.
 
-    logger.log('Shape: ' + str(x_train.shape))
-    logger.log('Train samples: ' + str(x_train.shape[0]))
-    logger.log('Test samples: ' + str(x_test.shape[0]))
-
     image = Input(shape=input_shape)
     x = Conv2D(16, (3, 3), activation='relu', padding='same')(image)
     x = MaxPooling2D(strides=2)(x)
