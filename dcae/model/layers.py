@@ -1,3 +1,0 @@
-"""
-Define some layers
-"""
