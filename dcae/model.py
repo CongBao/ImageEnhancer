@@ -1,14 +1,15 @@
 """The model of CAE"""
 
 import keras
-from keras import layers
+import matplotlib.pyplot as plt
+import numpy as np
 from keras import backend as K
+from keras import layers
 from keras.callbacks import TensorBoard
 from keras.datasets import cifar10
-from keras.layers import Conv2D, Conv2DTranspose, Input, Activation, BatchNormalization
+from keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose, Input
 from keras.models import Model
-
-import matplotlib.pyplot as plt
+from skimage.util import random_noise
 
 from utilities import load_data
 
@@ -16,11 +17,25 @@ __author__ = 'Cong Bao'
 
 IMG_DIR = r'F:/Data/anime/'
 
-def main():
-    #(x_train, _), (x_test, _) = cifar10.load_data()
-    x_train, x_test = load_data.load_img(IMG_DIR, 96, 96)
+def corrupt(x_input, noise_type=None, ratio=0.05):
+    if noise_type is None:
+        return x_input
+    x_noisy = np.copy(x_input)
+    size = x_input.shape[0]
+    for i in range(size):
+        if noise_type == 'GS':
+            x_noisy[i] = random_noise(x_noisy[i], 'gaussian', var=ratio)
+        elif noise_type == 'MN':
+            x_noisy[i] = random_noise(x_noisy[i], 'pepper', amount=ratio)
+        elif noise_type == 'SP':
+            x_noisy[i] = random_noise(x_noisy[i], 's&p', amount=ratio)
+    return x_noisy
 
-    channels, rows, cols = 3, 96, 96
+def main():
+    (x_train, _), (x_test, _) = cifar10.load_data()
+    #x_train, x_test = load_data.load_img(IMG_DIR, 96, 96)
+
+    channels, rows, cols = 3, 32, 32
 
     if K.image_data_format() == 'channels_first':
         x_train = x_train.reshape(x_train.shape[0], channels, rows, cols)
@@ -33,6 +48,20 @@ def main():
 
     x_train = x_train.astype('float32') / 255.
     x_test = x_test.astype('float32') / 255.
+
+    x_noisy = corrupt(x_train, 'GS')
+
+    plt.figure(facecolor='white')
+    plt.subplots_adjust(wspace=0.2, hspace=0.2)
+    for i in range(10):
+        plt.subplot(2, 10, i + 1)
+        plt.imshow(x_train[i].reshape(rows, cols, channels))
+        plt.axis('off')
+    for i in range(10):
+        plt.subplot(2, 10, i + 11)
+        plt.imshow(x_noisy[i].reshape(rows, cols, channels))
+        plt.axis('off')
+    plt.show()
 
     image = Input(shape=input_shape) # (r, c, 3)
     conv1 = BatchNormalization()(image)
@@ -67,7 +96,7 @@ def main():
     out = Conv2DTranspose(channels, (3, 3), activation='sigmoid', padding='same')(out)
     ae = Model(image, out)
     ae.compile(keras.optimizers.Adam(), keras.losses.binary_crossentropy)
-    ae.fit(x_train, x_train, 128, 50, 1, [TensorBoard('./graphs')], validation_data=(x_test, x_test))
+    ae.fit(x_noisy, x_train, 128, 50, 1, [TensorBoard('./graphs')], validation_data=(x_test, x_test))
 
     decoded_img = ae.predict(x_test)
     plt.figure(facecolor='white')
