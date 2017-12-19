@@ -1,4 +1,4 @@
-"""The model of DCAE"""
+""" The model of DCAE """
 
 from __future__ import division, print_function
 
@@ -30,7 +30,7 @@ NOISE_TYPE = 'GS'
 NOISE_RATIO = 0.05
 
 class DCAE(object):
-    """Denoising Convolutional Auto Encoder"""
+    """ Denoising Convolutional Auto Encoder """
 
     def __init__(self, params):
         self.img_shape = params.get('img_shape')
@@ -66,7 +66,7 @@ class DCAE(object):
                 noised[i] = random_noise(noised[i], 'gaussian', var=self.noise_ratio)
             elif self.noise_type == 'MN':
                 noised[i] = random_noise(noised[i], 'pepper', amount=self.noise_ratio)
-            elif self.noise_type == 'sp':
+            elif self.noise_type == 'SP':
                 noised[i] = random_noise(noised[i], 's&p', amount=self.noise_ratio)
         return noised
 
