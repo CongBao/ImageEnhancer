@@ -1,0 +1,9 @@
+numpy>=1.21.1
+scipy>=1.0.0
+matplotlib>=2.1.1
+tensorflow>=1.1.0
+keras-gpu>=2.0.8
+tqdm>=4.19.4
+pillow>=4.3.0
+scikit-image>=0.13.0
+joblib>=0.11
