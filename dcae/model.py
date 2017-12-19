@@ -1,4 +1,6 @@
-"""The model of CAE"""
+"""The model of DCAE"""
+
+from __future__ import division, print_function
 
 import argparse
 import os
@@ -31,7 +33,7 @@ class DCAE(object):
     """Denoising Convolutional Auto Encoder"""
 
     def __init__(self, params):
-        self.img_shape = params.get('img_shape', (96, 96, 3))
+        self.img_shape = params.get('img_shape')
         self.img_dir = params.get('img_dir')
         self.graph_path = params.get('graph_path', GRAPH_PATH)
         self.checkpoint_path = params.get('checkpoint_path', CHECKPOINT_PATH)
@@ -52,7 +54,10 @@ class DCAE(object):
 
         self.autoencoder = None
 
-    def _corrput(self, source):
+    def _corrupt(self, source):
+        """ corrupt the input with specific noising method
+            :param source: original data set
+        """
         if self.noise_type is None:
             return source
         noised = np.copy(source)
@@ -71,9 +76,9 @@ class DCAE(object):
         self.train_set = self.train_set.astype('float32') / 255
         self.valid_set = self.valid_set.astype('float32') / 255
         self.test_set = self.test_set.astype('float32') / 255
-        self.noised_train_set = self._corrput(self.train_set)
-        self.noised_valid_set = self._corrput(self.valid_set)
-        self.noised_test_set = self._corrput(self.test_set)
+        self.noised_train_set = self._corrupt(self.train_set)
+        self.noised_valid_set = self._corrupt(self.valid_set)
+        self.noised_test_set = self._corrupt(self.test_set)
 
     def build_model(self):
         """ build the model """
@@ -172,6 +177,21 @@ def main():
         'noise_type': args.type,
         'noise_ratio': args.ratio
     }
+    print('Image directory: %s' % args.input)
+    print('Graph path: %s' % args.graph)
+    print('Checkpoint path: %s' % args.checkpoint)
+    print('Example path: %s' % args.example)
+    print('Shape of image: %s' % args.shape)
+    print('Learning rate: %s' % args.rate)
+    print('Batch size: %s' % args.batch)
+    print('Epoches to train: %s' % args.epoch)
+    print('Noise type: %s' % args.type)
+    print('Noise ratio: %s' % args.ratio)
+    print('Running on %s' % ('CPU' if args.cpu else 'GPU'))
+    if not os.path.exists(params['checkpoint_path']):
+        os.makedirs(params['checkpoint_path'])
+    if not os.path.exists(params['example_path']):
+        os.makedirs(params['example_path'])
     dcae = DCAE(params)
     dcae.load_data()
     dcae.build_model()

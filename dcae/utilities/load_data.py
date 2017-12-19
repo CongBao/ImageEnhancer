@@ -12,13 +12,13 @@ from joblib import Parallel, delayed
 
 __author__ = 'Cong Bao'
 
-def load_train(train_list, img_dir, i):
+def _load_train(train_list, img_dir, i):
     return misc.imread(img_dir + train_list[i])
 
-def load_valid(valid_list, img_dir, i):
+def _load_valid(valid_list, img_dir, i):
     return misc.imread(img_dir + valid_list[i])
 
-def load_test(test_list, img_dir, i):
+def _load_test(test_list, img_dir, i):
     return misc.imread(img_dir + test_list[i])
 
 def load_img(img_dir, shape, ratio=(0.7, 0.15, 0.15), thread=2):
@@ -38,15 +38,15 @@ def load_img(img_dir, shape, ratio=(0.7, 0.15, 0.15), thread=2):
     # load train set
     train_list = random.sample(img_list, train_num)
     train_set = []
-    train_set.extend(Parallel(n_jobs=thread)(delayed(load_train)(train_list, img_dir, i) for i in tqdm(range(train_num))))
+    train_set.extend(Parallel(n_jobs=thread)(delayed(_load_train)(train_list, img_dir, i) for i in tqdm(range(train_num))))
     # load validation set
     valid_list = random.sample(set(img_list) - set(train_list), valid_num)
     valid_set = []
-    valid_set.extend(Parallel(n_jobs=thread)(delayed(load_valid)(valid_list, img_dir, i) for i in tqdm(range(valid_num))))
+    valid_set.extend(Parallel(n_jobs=thread)(delayed(_load_valid)(valid_list, img_dir, i) for i in tqdm(range(valid_num))))
     # load test set
     test_list = list(set(img_list) - set(train_list) - set(valid_list))
     test_set = []
-    test_set.extend(Parallel(n_jobs=thread)(delayed(load_test)(test_list, img_dir, i) for i in tqdm(range(test_num))))
+    test_set.extend(Parallel(n_jobs=thread)(delayed(_load_test)(test_list, img_dir, i) for i in tqdm(range(test_num))))
     # transfer to numpy array
     width, height, channel = shape
     train_set = np.asarray(train_set, 'uint8').reshape((train_num, width, height, channel))
