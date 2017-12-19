@@ -32,10 +32,10 @@ def corrupt(x_input, noise_type=None, ratio=0.05):
     return x_noisy
 
 def main():
-    (x_train, _), (x_test, _) = cifar10.load_data()
-    #x_train, x_test = load_data.load_img(IMG_DIR, 96, 96)
+    #(x_train, _), (x_test, _) = cifar10.load_data()
+    x_train, x_test = load_data.load_img(IMG_DIR, 96, 96)
 
-    channels, rows, cols = 3, 32, 32
+    channels, rows, cols = 3, 96, 96
 
     if K.image_data_format() == 'channels_first':
         x_train = x_train.reshape(x_train.shape[0], channels, rows, cols)
@@ -96,7 +96,7 @@ def main():
     out = Conv2DTranspose(channels, (3, 3), activation='sigmoid', padding='same')(out)
     ae = Model(image, out)
     ae.compile(keras.optimizers.Adam(), keras.losses.binary_crossentropy)
-    ae.fit(x_noisy, x_train, 128, 50, 1, [TensorBoard('./graphs')], validation_data=(x_test, x_test))
+    ae.fit(x_noisy, x_train, 128, 10, 1, [TensorBoard('./graphs')], validation_data=(x_test, x_test))
 
     decoded_img = ae.predict(x_test)
     plt.figure(facecolor='white')
