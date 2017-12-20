@@ -129,7 +129,7 @@ class DCAE(object):
     def save_image(self, name, num=10):
         """ save the image to file system
             :param name: name of image
-            :param num: number of images to draw, default 10 'test.%s-%.2f' % (epoch, logs['val_loss'])
+            :param num: number of images to draw, default 10
         """
         processed = self.model.predict(self.noised_test_set)
         plt.figure(facecolor='white')
@@ -147,6 +147,7 @@ class DCAE(object):
             plt.imshow(processed[i].reshape(self.img_shape))
             plt.axis('off')
         plt.savefig(self.example_path + name + '.png')
+        plt.close('all')
 
 def main():
     """ parse parameters from command line and start the training of model """
