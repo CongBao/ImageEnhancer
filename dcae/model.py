@@ -52,7 +52,7 @@ class DCAE(object):
         self.noised_valid_set = None
         self.noised_test_set = None
 
-        self.autoencoder = None
+        self.model = None
 
     def _corrupt(self, source):
         """ corrupt the input with specific noising method
@@ -113,25 +113,25 @@ class DCAE(object):
         out = BatchNormalization()(out)
         out = Activation('relu')(out)
         out = Conv2DTranspose(self.img_shape[2], (3, 3), activation='sigmoid', padding='same')(out)
-        self.autoencoder = Model(image, out)
+        self.model = Model(image, out)
 
     def train_model(self):
         """ train the model """
-        self.autoencoder.compile(Adam(lr=self.learning_rate), binary_crossentropy)
-        self.autoencoder.fit(self.noised_train_set, self.train_set,
-                             batch_size=self.batch_size,
-                             epochs=self.epoch,
-                             validation_data=(self.noised_valid_set, self.valid_set),
-                             callbacks=[TensorBoard(self.graph_path),
-                                        ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
-                                        LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image(epoch))])
+        self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
+        self.model.fit(self.noised_train_set, self.train_set,
+                       batch_size=self.batch_size,
+                       epochs=self.epoch,
+                       validation_data=(self.noised_valid_set, self.valid_set),
+                       callbacks=[TensorBoard(self.graph_path),
+                                  ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
+                                  LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs)))])
 
     def save_image(self, name, num=10):
         """ save the image to file system
             :param name: name of image
-            :param num: number of images to draw, default 10
+            :param num: number of images to draw, default 10 'test.%s-%.2f' % (epoch, logs['val_loss'])
         """
-        processed = self.autoencoder.predict(self.noised_test_set)
+        processed = self.model.predict(self.noised_test_set)
         plt.figure(facecolor='white')
         plt.subplots_adjust(wspace=0.2, hspace=0.2)
         for i in range(num):
@@ -146,7 +146,7 @@ class DCAE(object):
             plt.subplot(3, num, i + 2 * num + 1)
             plt.imshow(processed[i].reshape(self.img_shape))
             plt.axis('off')
-        plt.savefig(self.example_path + str(name))
+        plt.savefig(self.example_path + name + '.png')
 
 def main():
     """ parse parameters from command line and start the training of model """
