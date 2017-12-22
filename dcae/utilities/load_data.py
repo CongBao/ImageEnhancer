@@ -1,4 +1,4 @@
-"""Load images from file"""
+""" Load images from file """
 
 from __future__ import division
 
@@ -27,6 +27,7 @@ def load_img(img_dir, shape, ratio=(0.7, 0.15, 0.15), thread=2):
         :param shape: the width, height, and channel of each image
         :param ratio: ratio to separate train, validation, and test sets, default (0.7, 0.15, 0.15)
         :param thread: number of threads to be used, default 2
+        :return: separated data sets in a tuple: (training set, validation set, test set)
     """
     # all images path
     img_list = os.listdir(img_dir)

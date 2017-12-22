@@ -57,6 +57,7 @@ class DCAE(object):
     def _corrupt(self, source):
         """ corrupt the input with specific noising method
             :param source: original data set
+            :return: corrupted data set, if noise type is not defined, the original data set will return
         """
         if self.noise_type is None:
             return source
