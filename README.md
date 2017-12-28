@@ -1,4 +1,10 @@
-﻿# Denoising Convolutional Autoencoder
+﻿# Image Enhancer
+
+With this Image Enhancer, you can:
+
++ reduce image noise
++ enhance resolution ratio
++ and so on
 
 Main reference:
 
