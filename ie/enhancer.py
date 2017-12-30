@@ -87,6 +87,8 @@ class Enhancer(object):
         self.out_shape = self.img_shape
              
         self.train_set, self.valid_set, self.test_set = load_img(self.img_dir, self.img_shape)
+
+        print('Preprocessing data...')
         self.train_set = self.train_set.astype('float32') / 255
         self.valid_set = self.valid_set.astype('float32') / 255
         self.test_set = self.test_set.astype('float32') / 255
