@@ -8,31 +8,31 @@ With this Image Enhancer, you can:
 
 ## Usage:
 
-### Simplest (model, input directory, and image shape are required)
+Simplest (model, input directory, and image shape are required)
 
     python run.py -m denoise -i ~/data/images/ -s 96 96 3
 
-### Specify hyperparameters (learning rate, batch size, epoches)
+Specify hyperparameters (learning rate, batch size, epoches)
 
     python run.py -m denoise -i ~/data/images/ -s 96 96 3 -r 0.001 -b 128 -e 50
 
-### Specify corruption types and/or ratio
+Specify corruption types and/or ratio
 
     python run.py -m augment -i ~/data/images/ -s 96 96 3 -T ZIP
     python run.py -m denoise -i ~/data/images/ -s 96 96 3 -T GSN -R 0.05
 
 *Till now, there are several corruption types:*
-+ **_GSN_**: Gaussian Noise
-+ **_MSN_**: Masking Noise
-+ **_SPN_**: Salt & Pepper Noise
-+ **_GSB_**: Gaussian Blur
-+ **_ZIP_**: Zip image as half of original resolution
++ **_GSN_** Gaussian Noise
++ **_MSN_** Masking Noise
++ **_SPN_** Salt & Pepper Noise
++ **_GSB_** Gaussian Blur
++ **_ZIP_** Zip image as half of original resolution
 
-### Specify file path
+Specify file path
 
     python run.py -m denoise -i ~/data/images/ -s 96 96 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
 
-### Training on CPU
+Training on CPU
 
     python run.py -m denoise -i ~/data/images/ -s 96 96 3 --cpu-only
 
