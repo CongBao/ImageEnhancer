@@ -30,7 +30,7 @@ CORRUPT_TYPES = ['GS', 'MN', 'SP', 'ZIP']
 MODEL_TYPE = 'denoise'
 LEARNING_RATE = 0.001
 BATCH_SIZE = 128
-EPOCH = 100
+EPOCH = 50
 CORRUPT_TYPE = 'GS'
 CORRUPT_RATIO = 0.05
 
@@ -38,13 +38,13 @@ class Enhancer(object):
     """ Denoising Convolutional Auto Encoder """
 
     def __init__(self, **kwargs):
-        self.img_shape = kwargs.get('img_shape')
         self.img_dir = kwargs.get('img_dir')
+        self.img_shape = kwargs.get('img_shape')
+        self.model_type = kwargs.get('model_type', MODEL_TYPE)
         self.graph_path = kwargs.get('graph_path', GRAPH_PATH)
         self.checkpoint_path = kwargs.get('checkpoint_path', CHECKPOINT_PATH)
         self.example_path = kwargs.get('example_path', EXAMPLE_PATH)
 
-        self.model_type = kwargs.get('model_type', MODEL_TYPE)
         self.learning_rate = kwargs.get('learning_rate', LEARNING_RATE)
         self.batch_size = kwargs.get('batch_size', BATCH_SIZE)
         self.epoch = kwargs.get('epoch', EPOCH)
