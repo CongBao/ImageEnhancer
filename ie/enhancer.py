@@ -2,9 +2,6 @@
 
 from __future__ import division, print_function
 
-import argparse
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 from keras import layers
@@ -20,36 +17,22 @@ from utilities.load_data import load_img
 
 __author__ = 'Cong Bao'
 
-GRAPH_PATH = './graphs/'
-CHECKPOINT_PATH = './checkpoints/'
-EXAMPLE_PATH = './examples/'
-
-MODEL_TYPES = ['denoise', 'augment']
-CORRUPT_TYPES = ['GS', 'MN', 'SP', 'ZIP']
-
-MODEL_TYPE = 'denoise'
-LEARNING_RATE = 0.001
-BATCH_SIZE = 128
-EPOCH = 50
-CORRUPT_TYPE = 'GS'
-CORRUPT_RATIO = 0.05
-
 class Enhancer(object):
     """ Denoising Convolutional Auto Encoder """
 
     def __init__(self, **kwargs):
         self.img_dir = kwargs.get('img_dir')
         self.img_shape = kwargs.get('img_shape')
-        self.model_type = kwargs.get('model_type', MODEL_TYPE)
-        self.graph_path = kwargs.get('graph_path', GRAPH_PATH)
-        self.checkpoint_path = kwargs.get('checkpoint_path', CHECKPOINT_PATH)
-        self.example_path = kwargs.get('example_path', EXAMPLE_PATH)
+        self.model_type = kwargs.get('model_type')
+        self.graph_path = kwargs.get('graph_path')
+        self.checkpoint_path = kwargs.get('checkpoint_path')
+        self.example_path = kwargs.get('example_path')
 
-        self.learning_rate = kwargs.get('learning_rate', LEARNING_RATE)
-        self.batch_size = kwargs.get('batch_size', BATCH_SIZE)
-        self.epoch = kwargs.get('epoch', EPOCH)
-        self.corrupt_type = kwargs.get('corrupt_type', CORRUPT_TYPE)
-        self.corrupt_ratio = kwargs.get('corrupt_ratio', CORRUPT_RATIO)
+        self.learning_rate = kwargs.get('learning_rate')
+        self.batch_size = kwargs.get('batch_size')
+        self.epoch = kwargs.get('epoch')
+        self.corrupt_type = kwargs.get('corrupt_type')
+        self.corrupt_ratio = kwargs.get('corrupt_ratio')
 
         self.in_shape = None
         self.out_shape = None
@@ -231,60 +214,3 @@ class AugmentModel(AbstractModel):
         out = Activation('relu')(out)
         out = Conv2DTranspose(self.in_shape[2], (3, 3), activation='sigmoid', padding='same')(out)
         return Model(image, out)
-
-def main():
-    """ parse parameters from command line and start the training of model """
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-m', dest='model', type=str, required=True, help='the model to train')
-    parser.add_argument('-i', dest='input', type=str, required=True, help='directory of input images')
-    parser.add_argument('-s', dest='shape', type=int, required=True, nargs='+', help='width, height, channel of image')
-    parser.add_argument('-r', dest='rate', type=float, default=LEARNING_RATE, help='learning rate')
-    parser.add_argument('-b', dest='batch', type=int, default=BATCH_SIZE, help='batch size')
-    parser.add_argument('-e', dest='epoch', type=int, default=EPOCH, help='number of epoches to train')
-    parser.add_argument('--cor-type', dest='type', type=str, default=CORRUPT_TYPE, help='type of corruption')
-    parser.add_argument('--cor-ratio', dest='ratio', type=float, default=CORRUPT_RATIO, help='ratio of corruption')
-    parser.add_argument('--graph-path', dest='graph', type=str, default=GRAPH_PATH, help='path to save tensor graphs')
-    parser.add_argument('--checkpoint-path', dest='checkpoint', type=str, default=CHECKPOINT_PATH, help='path to save checkpoint files')
-    parser.add_argument('--example-path', dest='example', type=str, default=EXAMPLE_PATH, help='path to save example images')
-    parser.add_argument('--cpu-only', dest='cpu', action='store_true', help='if use cpu only')
-    args = parser.parse_args()
-    if args.cpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = ''
-    assert args.model in MODEL_TYPES
-    assert args.type in CORRUPT_TYPES
-    params = {
-        'model_type': args.model,
-        'img_shape': tuple(args.shape),
-        'img_dir': args.input,
-        'graph_path': args.graph,
-        'checkpoint_path': args.checkpoint,
-        'example_path': args.example,
-        'learning_rate': args.rate,
-        'batch_size': args.batch,
-        'epoch': args.epoch,
-        'corrupt_type': args.type,
-        'corrupt_ratio': args.ratio
-    }
-    print('Model to train: %s' % args.model)
-    print('Image directory: %s' % args.input)
-    print('Graph path: %s' % args.graph)
-    print('Checkpoint path: %s' % args.checkpoint)
-    print('Example path: %s' % args.example)
-    print('Shape of image: %s' % args.shape)
-    print('Learning rate: %s' % args.rate)
-    print('Batch size: %s' % args.batch)
-    print('Epoches to train: %s' % args.epoch)
-    print('Corruption type: %s' % args.type)
-    print('Corruption ratio: %s' % args.ratio)
-    print('Running on %s' % ('CPU' if args.cpu else 'GPU'))
-    if not os.path.exists(params['checkpoint_path']):
-        os.makedirs(params['checkpoint_path'])
-    if not os.path.exists(params['example_path']):
-        os.makedirs(params['example_path'])
-    enhancer = Enhancer(**params)
-    enhancer.load_data()
-    enhancer.build_model()
-    enhancer.train_model()
-
-if __name__ == '__main__':
-    main()
