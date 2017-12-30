@@ -29,6 +29,7 @@ def load_img(img_dir, shape, ratio=(0.7, 0.15, 0.15), thread=2):
         :param thread: number of threads to be used, default 2
         :return: separated data sets in a tuple: (training set, validation set, test set)
     """
+    fmt = 'Loading {part} dataset: {{percentage:3.0f}}% {{r_bar}}'
     # all images path
     img_list = os.listdir(img_dir)
     # number of each part
@@ -39,15 +40,15 @@ def load_img(img_dir, shape, ratio=(0.7, 0.15, 0.15), thread=2):
     # load train set
     train_list = random.sample(img_list, train_num)
     train_set = []
-    train_set.extend(Parallel(n_jobs=thread)(delayed(_load_train)(train_list, img_dir, i) for i in tqdm(range(train_num))))
+    train_set.extend(Parallel(n_jobs=thread)(delayed(_load_train)(train_list, img_dir, i) for i in tqdm(range(train_num), bar_format=fmt.format(part='train'))))
     # load validation set
     valid_list = random.sample(set(img_list) - set(train_list), valid_num)
     valid_set = []
-    valid_set.extend(Parallel(n_jobs=thread)(delayed(_load_valid)(valid_list, img_dir, i) for i in tqdm(range(valid_num))))
+    valid_set.extend(Parallel(n_jobs=thread)(delayed(_load_valid)(valid_list, img_dir, i) for i in tqdm(range(valid_num), bar_format=fmt.format(part='validation'))))
     # load test set
     test_list = list(set(img_list) - set(train_list) - set(valid_list))
     test_set = []
-    test_set.extend(Parallel(n_jobs=thread)(delayed(_load_test)(test_list, img_dir, i) for i in tqdm(range(test_num))))
+    test_set.extend(Parallel(n_jobs=thread)(delayed(_load_test)(test_list, img_dir, i) for i in tqdm(range(test_num), bar_format=fmt.format(part='test'))))
     # transfer to numpy array
     width, height, channel = shape
     train_set = np.asarray(train_set, 'uint8').reshape((train_num, width, height, channel))
