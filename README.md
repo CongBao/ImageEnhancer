@@ -6,6 +6,31 @@ With this Image Enhancer, you can:
 + enhance resolution ratio
 + and so on
 
+## Usage:
+
++ Simplest
+
+    python run.py -m denoise -i ~/data/images/ -s 96 96 3
+
++ Specify hyperparameters (learning rate, batch size, epoches)
+
+    python run.py -m denoise -i ~/data/images/ -s 96 96 3 -r 0.001 -b 128 -e 50
+
++ Specify corruption types and/or ratio
+
+    python run.py -m augment -i ~/data/images/ -s 96 96 3 -T ZIP
+    python run.py -m denoise -i ~/data/images/ -s 96 96 3 -T GS -R 0.05
+
++ Specify file path
+
+    python run.py -m denoise -i ~/data/images/ -s 96 96 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
+
++ Training on CPU
+
+    python run.py -m denoise -i ~/data/images/ -s 96 96 3 --cpu-only
+
+## References
+
 Main reference:
 
     @article{Dong:2016,
