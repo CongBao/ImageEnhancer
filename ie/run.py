@@ -12,7 +12,7 @@ CHECKPOINT_PATH = './checkpoints/'
 EXAMPLE_PATH = './examples/'
 
 MODEL_TYPES = ['denoise', 'augment']
-CORRUPT_TYPES = ['GS', 'MN', 'SP', 'ZIP']
+CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'ZIP']
 
 MODEL_TYPE = 'denoise'
 LEARNING_RATE = 0.001

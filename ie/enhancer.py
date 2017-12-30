@@ -12,6 +12,7 @@ from keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose
 from keras.losses import binary_crossentropy
 from keras.models import Model
 from keras.optimizers import Adam
+from skimage.filters import gaussian
 from skimage.transform import rescale
 from skimage.util import random_noise
 
@@ -67,12 +68,14 @@ class Enhancer(object):
         else:
             noised = np.copy(source)
         for i in range(np.shape(source)[0]):
-            if self.corrupt_type == 'GS':
+            if self.corrupt_type == 'GSN':
                 noised[i] = random_noise(noised[i], 'gaussian', var=self.corrupt_ratio)
-            elif self.corrupt_type == 'MN':
+            elif self.corrupt_type == 'MSN':
                 noised[i] = random_noise(noised[i], 'pepper', amount=self.corrupt_ratio)
-            elif self.corrupt_type == 'SP':
+            elif self.corrupt_type == 'SPN':
                 noised[i] = random_noise(noised[i], 's&p', amount=self.corrupt_ratio)
+            elif self.corrupt_type == 'GSB':
+                noised[i] = gaussian(noised[i], sigma=self.corrupt_ratio, multichannel=True)
             elif self.corrupt_type == 'ZIP':
                 noised[i] = rescale(source[i], 0.5, mode='constant')
         return noised
@@ -128,7 +131,6 @@ class Enhancer(object):
         for i in range(num):
             plt.subplot(3, num, i + 1)
             plt.imshow(self.test_set[i].reshape(self.img_shape))
-            plt.axis()
         for i in range(num):
             plt.subplot(3, num, i + num + 1)
             plt.imshow(self.corrupted_test_set[i].reshape(self.in_shape))
