@@ -72,6 +72,7 @@ def main():
         os.makedirs(params['checkpoint_path'])
     if not os.path.exists(params['example_path']):
         os.makedirs(params['example_path'])
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     from enhancer import Enhancer
     enhancer = Enhancer(**params)
     enhancer.load_data()
