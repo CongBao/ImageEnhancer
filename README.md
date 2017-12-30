@@ -8,7 +8,7 @@ With this Image Enhancer, you can:
 
 ## Usage:
 
-Simplest
+Simplest (model, input directory, and image shape are required)
 
     python run.py -m denoise -i ~/data/images/ -s 96 96 3
 
