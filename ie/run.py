@@ -19,7 +19,7 @@ LEARNING_RATE = 0.001
 BATCH_SIZE = 128
 EPOCH = 50
 CORRUPT_TYPE = 'GSN'
-CORRUPT_RATIO = 0.05
+CORRUPT_RATIO = 0.02
 
 def main():
     """ parse parameters from command line and start the training of model """

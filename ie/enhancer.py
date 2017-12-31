@@ -48,8 +48,7 @@ class Enhancer(object):
 
         self.model = None
 
-    @staticmethod
-    def tstamp():
+    def tstamp(self):
         """ Get a time stamp
             :return: a time stamp in milliseconds
         """
@@ -116,7 +115,7 @@ class Enhancer(object):
                        epochs=self.epoch,
                        validation_data=(self.corrupted_valid_set, self.valid_set),
                        callbacks=[TensorBoard(self.graph_path),
-                                  ModelCheckpoint(self.checkpoint_path + 'weights.{{epoch:02d}}-{{val_loss:.2f}}.{ts}.hdf5'.format(ts=Enhancer.tstamp())),
+                                  ModelCheckpoint(self.checkpoint_path + 'weights.{{epoch:02d}}-{{val_loss:.2f}}.{ts}.hdf5'.format(ts=self.tstamp())),
                                   LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs)))])
 
     def save_image(self, name, num=10):
@@ -125,18 +124,20 @@ class Enhancer(object):
             :param num: number of images to draw, default 10
         """
         processed = self.model.predict(self.corrupted_test_set)
-        plt.rcParams.update({'font.size': 5})
-        plt.figure(facecolor='white')
-        plt.subplots_adjust(wspace=0.7, hspace=0.2)
+        plt.figure(facecolor='white', figsize=(16, 9))
+        plt.subplots_adjust(wspace=0.1, hspace=0.05, top=1.0, bottom=0.0, left=0.1, right=0.9)
         for i in range(num):
             plt.subplot(3, num, i + 1)
             plt.imshow(self.test_set[i].reshape(self.img_shape))
+            plt.axis('off')
         for i in range(num):
             plt.subplot(3, num, i + num + 1)
             plt.imshow(self.corrupted_test_set[i].reshape(self.in_shape))
+            plt.axis('off')
         for i in range(num):
             plt.subplot(3, num, i + 2 * num + 1)
             plt.imshow(processed[i].reshape(self.out_shape))
+            plt.axis('off')
         plt.savefig(self.example_path + name + '.png')
         plt.close('all')
 
@@ -145,6 +146,16 @@ class AbstractModel(object):
 
     def __init__(self, in_shape):
         self.in_shape = in_shape
+
+    def fit_channel(self, layer, dim_out):
+        """ fit the channel of a layer
+            :param layer: input layer
+            :param dim_out: number of output channels
+            :return: a new layer with given channels
+        """
+        layer = Conv2D(dim_out, (1, 1), padding='same')(layer)
+        layer = BatchNormalization()(layer)
+        return layer
 
     def construct(self):
         """ construct the model """
@@ -167,23 +178,36 @@ class DenoiseModel(AbstractModel):
         conv4 = BatchNormalization()(conv3)
         conv4 = Activation('relu')(conv4)
         conv4 = Conv2D(64, (3, 3), padding='same', strides=(2, 2))(conv4) # (0.25r, 0.25c, 64)
-        deconv4 = BatchNormalization()(conv4)
+        conv5 = BatchNormalization()(conv4)
+        conv5 = Activation('relu')(conv5)
+        conv5 = Conv2D(128, (3, 3), padding='same')(conv5) # (0.25r, 0.25c, 128)
+        conv6 = BatchNormalization()(conv5)
+        conv6 = Activation('relu')(conv6)
+        conv6 = Conv2D(128, (3, 3), padding='same', strides=(2, 2))(conv6) # (0.125r, 0.125c, 128)
+        deconv6 = BatchNormalization()(conv6)
+        deconv6 = Activation('relu')(deconv6)
+        deconv6 = Conv2DTranspose(128, (3, 3), padding='same')(deconv6) # (0.125r, 0.125c, 128)
+        deconv5 = BatchNormalization()(deconv6)
+        deconv5 = Activation('relu')(deconv5)
+        deconv5 = Conv2DTranspose(128, (3, 3), padding='same', strides=(2, 2))(deconv5) # (0.25r, 0.25c, 128)
+        deconv4 = layers.add([deconv5, self.fit_channel(conv4, 128)])
+        deconv4 = BatchNormalization()(deconv4)
         deconv4 = Activation('relu')(deconv4)
-        deconv4 = Conv2DTranspose(32, (3, 3), padding='same')(deconv4) # (0.25r, 0.25c, 32)
+        deconv4 = Conv2DTranspose(64, (3, 3), padding='same')(deconv4) # (0.25r, 0.25c, 64)
         deconv3 = BatchNormalization()(deconv4)
         deconv3 = Activation('relu')(deconv3)
-        deconv3 = Conv2DTranspose(32, (3, 3), padding='same', strides=(2, 2))(deconv3) # (0.5r, 0.5c, 32)
-        deconv2 = layers.add([deconv3, conv2])
+        deconv3 = Conv2DTranspose(64, (3, 3), padding='same', strides=(2, 2))(deconv3) # (0.5r, 0.5c, 64)
+        deconv2 = layers.add([deconv3, self.fit_channel(conv2, 64)])
         deconv2 = BatchNormalization()(deconv2)
         deconv2 = Activation('relu')(deconv2)
-        deconv2 = Conv2DTranspose(3, (3, 3), padding='same')(deconv2) # (0.5r, 0.5c, 3)
+        deconv2 = Conv2DTranspose(32, (3, 3), padding='same')(deconv2) # (0.5r, 0.5c, 32)
         deconv1 = BatchNormalization()(deconv2)
         deconv1 = Activation('relu')(deconv1)
-        deconv1 = Conv2DTranspose(3, (3, 3), padding='same', strides=(2, 2))(deconv1) # (r, c, 3)
-        out = layers.add([deconv1, image])
+        deconv1 = Conv2DTranspose(32, (3, 3), padding='same', strides=(2, 2))(deconv1) # (r, c, 32)
+        out = layers.add([deconv1, self.fit_channel(image, 32)])
         out = BatchNormalization()(out)
         out = Activation('relu')(out)
-        out = Conv2DTranspose(self.in_shape[2], (3, 3), activation='sigmoid', padding='same')(out)
+        out = Conv2DTranspose(self.in_shape[2], (3, 3), activation='sigmoid', padding='same')(out) # (r, c, 3)
         return Model(image, out)
 
 class AugmentModel(AbstractModel):
@@ -209,20 +233,20 @@ class AugmentModel(AbstractModel):
         deconv3 = BatchNormalization()(deconv4)
         deconv3 = Activation('relu')(deconv3)
         deconv3 = Conv2DTranspose(64, (3, 3), padding='same', strides=(2, 2))(deconv3) # (0.25r, 0.25c, 64)
-        deconv2 = layers.add([deconv3, conv3])
+        deconv2 = layers.add([deconv3, self.fit_channel(conv2, 64)])
         deconv2 = BatchNormalization()(deconv2)
         deconv2 = Activation('relu')(deconv2)
         deconv2 = Conv2DTranspose(32, (3, 3), padding='same')(deconv2) # (0.25r, 0.25c, 32)
         deconv1 = BatchNormalization()(deconv2)
         deconv1 = Activation('relu')(deconv1)
         deconv1 = Conv2DTranspose(32, (3, 3), padding='same', strides=(2, 2))(deconv1) # (0.5r, 0.5c, 32)
-        deconv0 = layers.add([deconv1, conv1])
+        deconv0 = layers.add([deconv1, self.fit_channel(image, 32)])
         deconv0 = BatchNormalization()(deconv0)
         deconv0 = Activation('relu')(deconv0)
-        deconv0 = Conv2DTranspose(3, (3, 3), padding='same')(deconv0) # (0.5r, 0.5c, 3)
+        deconv0 = Conv2DTranspose(16, (3, 3), padding='same')(deconv0) # (0.5r, 0.5c, 3)
         deconv0 = BatchNormalization()(deconv0)
         deconv0 = Activation('relu')(deconv0)
-        deconv0 = Conv2DTranspose(3, (3, 3), padding='same', strides=(2, 2))(deconv0) # (r, c, 3)
+        deconv0 = Conv2DTranspose(16, (3, 3), padding='same', strides=(2, 2))(deconv0) # (r, c, 3)
         out = BatchNormalization()(deconv0)
         out = Activation('relu')(out)
         out = Conv2DTranspose(self.in_shape[2], (3, 3), activation='sigmoid', padding='same')(out)
