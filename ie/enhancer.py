@@ -51,12 +51,6 @@ class Enhancer(object):
 
         self.model = None
 
-    def tstamp(self):
-        """ Get a time stamp
-            :return: a time stamp in milliseconds
-        """
-        return int(time.time() * 1000)
-
     def _corrupt(self, source):
         """ corrupt the input with specific corruption method
             :param source: original data set
@@ -118,7 +112,7 @@ class Enhancer(object):
                        epochs=self.epoch,
                        validation_data=(self.corrupted_valid_set, self.valid_set),
                        callbacks=[TensorBoard(self.graph_path),
-                                  ModelCheckpoint(self.checkpoint_path + 'weights.{{epoch:02d}}-{{val_loss:.2f}}.{ts}.hdf5'.format(ts=self.tstamp())),
+                                  ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                                   LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs)))])
 
     def save_image(self, name, num=10):
