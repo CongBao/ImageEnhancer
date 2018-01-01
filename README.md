@@ -6,6 +6,24 @@ With this Image Enhancer, you can:
 + enhance resolution ratio
 + and so on
 
+## Examples
+
+Image source: Pascal VOC 2012, Image shape: 128, 128, 3
+
+Learning rate: 0.01, Batch size: 128, Epoch: 50
+
+Model: denoise, Corruption type: GSN (Gaussian Noise), Ratio: 2%
+
+![denoise gsn](denoise_gsn.png)
+
+Model: denoise, Corruption type: GSB (Gaussian Blur), Ratio: 2x
+
+![denoise gsb](denoise_gsb.png)
+
+Model: augment, Corruption type: ZIP
+
+![augment zip](augment_zip.png)
+
 ## Usage:
 
 Simplest (model, input directory, and image shape are required)
