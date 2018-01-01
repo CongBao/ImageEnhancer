@@ -10,24 +10,24 @@ With this Image Enhancer, you can:
 
 Image source: Pascal VOC 2012, Image shape: 128, 128, 3
 
-Learning rate: 0.01, Batch size: 128, Epoch: 50
+Learning rate: 0.001, Batch size: 128, Epoch: 50
 
 Trained on NVIDIA Tesla K40c (12GB)
 
 Model   | Corruption type      | Ratio
-------- | -------------------- | -----
+:-----: | :------------------: | :---:
 denoise | GSN (Gaussian Noise) | 2%
 
 ![denoise gsn](denoise_gsn.png)
 
 Model   | Corruption type     | Ratio
-------- | ------------------- | -----
+:-----: | :-----------------: | :---:
 denoise | GSB (Gaussian Blur) | 2x
 
 ![denoise gsb](denoise_gsb.png)
 
 Model   | Corruption type | Ratio
-------- | --------------- | -----
+:-----: | :-------------: | :---:
 augment | ZIP             | N/A
 
 ![augment zip](augment_zip.png)
