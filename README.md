@@ -6,6 +6,8 @@ With this Image Enhancer, you can:
 + enhance resolution ratio
 + and so on
 
+Anything that in the process of corrupt - restore can be trained.
+
 ## Examples
 
 Image source: Pascal VOC 2012, Image shape: 128, 128, 3
@@ -36,16 +38,16 @@ augment | ZIP             | N/A
 
 Simplest (model, input directory, and image shape are required)
 
-    python run.py -m denoise -i ~/data/images/ -s 96 96 3
+    python run.py -m denoise -i ~/data/images/ -s 128 128 3
 
 Specify hyperparameters (learning rate, batch size, epoches)
 
-    python run.py -m denoise -i ~/data/images/ -s 96 96 3 -r 0.001 -b 128 -e 50
+    python run.py -m denoise -i ~/data/images/ -s 128 128 3 -r 0.001 -b 64 -e 50
 
 Specify corruption types and/or ratio
 
-    python run.py -m augment -i ~/data/images/ -s 96 96 3 -T ZIP
-    python run.py -m denoise -i ~/data/images/ -s 96 96 3 -T GSN -R 0.05
+    python run.py -m augment -i ~/data/images/ -s 128 128 3 -T ZIP
+    python run.py -m denoise -i ~/data/images/ -s 128 128 3 -T GSN -R 0.05
 
 *Till now, there are several corruption types:*
 + **_GSN_** Gaussian Noise
@@ -56,11 +58,11 @@ Specify corruption types and/or ratio
 
 Specify file path
 
-    python run.py -m denoise -i ~/data/images/ -s 96 96 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
+    python run.py -m denoise -i ~/data/images/ -s 128 128 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
 
 Training on CPU
 
-    python run.py -m denoise -i ~/data/images/ -s 96 96 3 --cpu-only
+    python run.py -m denoise -i ~/data/images/ -s 128 128 3 --cpu-only
 
 ## References
 
