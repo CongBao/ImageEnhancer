@@ -3,6 +3,8 @@
 import argparse
 import os
 
+import matplotlib
+
 from utilities.input_correction import Correction
 
 __author__ = 'Cong Bao'
@@ -73,6 +75,7 @@ def main():
     if not os.path.exists(params['example_path']):
         os.makedirs(params['example_path'])
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    matplotlib.use('Agg')
     from enhancer import Enhancer
     enhancer = Enhancer(**params)
     enhancer.load_data()

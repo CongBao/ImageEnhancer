@@ -2,11 +2,6 @@
 
 from __future__ import division, print_function
 
-import time
-
-import matplotlib
-matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
 import numpy as np
 from keras import layers
