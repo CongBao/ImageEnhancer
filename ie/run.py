@@ -78,6 +78,7 @@ def main():
     enhancer.load_data()
     enhancer.build_model()
     enhancer.train_model()
+    enhancer.evaluate_model()
 
 if __name__ == '__main__':
     main()

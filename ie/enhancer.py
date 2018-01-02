@@ -115,6 +115,12 @@ class Enhancer(object):
                                   ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                                   LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs)))])
 
+    def evaluate_model(self):
+        """ evaluate the model on test data set """
+        print('Evaluating model...')
+        score = self.model.evaluate(self.corrupted_test_set, self.test_set, batch_size=self.batch_size)
+        print('The test loss is: %s' % score)
+
     def save_image(self, name, num=10):
         """ save the image to file system
             :param name: name of image
