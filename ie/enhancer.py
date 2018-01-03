@@ -10,6 +10,7 @@ from keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose
 from keras.losses import binary_crossentropy
 from keras.models import Model
 from keras.optimizers import Adam
+from skimage.color import gray2rgb, rgb2gray
 from skimage.filters import gaussian
 from skimage.transform import rescale
 from skimage.util import random_noise
@@ -24,7 +25,6 @@ class Enhancer(object):
     def __init__(self, **kwargs):
         self.img_dir = kwargs.get('img_dir')
         self.img_shape = kwargs.get('img_shape')
-        self.model_type = kwargs.get('model_type')
         self.graph_path = kwargs.get('graph_path')
         self.checkpoint_path = kwargs.get('checkpoint_path')
         self.example_path = kwargs.get('example_path')
@@ -67,6 +67,8 @@ class Enhancer(object):
                 noised[i] = random_noise(noised[i], 's&p', amount=self.corrupt_ratio)
             elif self.corrupt_type == 'GSB':
                 noised[i] = gaussian(noised[i], sigma=self.corrupt_ratio, multichannel=True)
+            elif self.corrupt_type == 'GRY':
+                noised[i] = gray2rgb(rgb2gray(noised[i]))
             elif self.corrupt_type == 'ZIP':
                 noised[i] = rescale(source[i], 0.5, mode='constant')
         return noised
@@ -93,10 +95,10 @@ class Enhancer(object):
     def build_model(self):
         """ build a given model """
         _model = AbstractModel(self.in_shape)
-        if self.model_type == 'denoise':
-            _model = DenoiseModel(self.in_shape)
-        elif self.model_type == 'augment':
+        if self.corrupt_type == 'ZIP':
             _model = AugmentModel(self.in_shape)
+        else:
+            _model = DenoiseModel(self.in_shape)
         self.model = _model.construct()
 
     def train_model(self):

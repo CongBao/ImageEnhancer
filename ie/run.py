@@ -13,8 +13,7 @@ GRAPH_PATH = './graphs/'
 CHECKPOINT_PATH = './checkpoints/'
 EXAMPLE_PATH = './examples/'
 
-MODEL_TYPES = ['denoise', 'augment']
-CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'ZIP']
+CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'GRY', 'ZIP']
 
 MODEL_TYPE = 'denoise'
 LEARNING_RATE = 0.001
@@ -27,7 +26,6 @@ def main():
     """ parse parameters from command line and start the training of model """
     parser = argparse.ArgumentParser()
     add_arg = parser.add_argument
-    add_arg('-m', dest='model',  type=str,   required=True,            help='the model to train, within %s' % MODEL_TYPES)
     add_arg('-i', dest='input',  type=str,   required=True,            help='directory of source images')
     add_arg('-s', dest='shape',  type=int,   required=True, nargs='+', help='width, height, channel of image')
     add_arg('-r', dest='rate',   type=float, default=LEARNING_RATE,    help='learning rate, default %s' % LEARNING_RATE)
@@ -42,11 +40,9 @@ def main():
     args = parser.parse_args()
     if args.cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
-    assert args.model in MODEL_TYPES
     assert args.type in CORRUPT_TYPES
     corr = Correction().correct
     params = {
-        'model_type':      args.model,
         'img_shape':       tuple(args.shape),
         'img_dir':         corr(args.input),
         'graph_path':      corr(args.graph),
@@ -58,7 +54,6 @@ def main():
         'corrupt_type':    args.type,
         'corrupt_ratio':   args.ratio
     }
-    print('Model to train: %s'   % params['model_type'])
     print('Image directory: %s'  % params['img_dir'])
     print('Graph path: %s'       % params['graph_path'])
     print('Checkpoint path: %s'  % params['checkpoint_path'])
