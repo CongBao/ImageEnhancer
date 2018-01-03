@@ -3,6 +3,7 @@
 With this Image Enhancer, you can:
 
 + reduce image noise
++ color a grayscale image
 + enhance resolution ratio
 + and so on
 
