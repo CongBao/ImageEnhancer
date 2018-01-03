@@ -16,21 +16,21 @@ Learning rate: 0.001, Batch size: 128, Epoch: 50
 
 Trained on NVIDIA Tesla K40c (12GB)
 
-Model   | Corruption type      | Ratio
-:-----: | :------------------: | :---:
-denoise | GSN (Gaussian Noise) | 2%
+| Corruption type      | Ratio
+| :------------------: | :---:
+| GSN (Gaussian Noise) | 2%
 
 ![denoise gsn](denoise_gsn.png)
 
-Model   | Corruption type     | Ratio
-:-----: | :-----------------: | :---:
-denoise | GSB (Gaussian Blur) | 2x
+| Corruption type     | Ratio
+| :-----------------: | :---:
+| GSB (Gaussian Blur) | 2x
 
 ![denoise gsb](denoise_gsb.png)
 
-Model   | Corruption type | Ratio
-:-----: | :-------------: | :---:
-augment | ZIP             | N/A
+| Corruption type | Ratio
+| :-------------: | :---:
+| ZIP             | N/A
 
 ![augment zip](augment_zip.png)
 
@@ -54,7 +54,7 @@ Specify corruption types and/or ratio
 + **_MSN_** Masking Noise
 + **_SPN_** Salt & Pepper Noise
 + **_GSB_** Gaussian Blur
-+ **_GRY_** Transform RGB image to grayscale image
++ **_GRY_** Transform RGB image to grayscale image (raw image should be RGB)
 + **_ZIP_** Zip image as half of original resolution
 
 Specify file path
