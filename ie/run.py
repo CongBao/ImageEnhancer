@@ -1,5 +1,7 @@
 """ Run the enhancer """
 
+from __future__ import print_function
+
 import argparse
 import os
 
@@ -63,7 +65,8 @@ def main():
     print('Batch size: %s'       % params['batch_size'])
     print('Epoches to train: %s' % params['epoch'])
     print('Corruption type: %s'  % params['corrupt_type'])
-    print('Corruption ratio: %s' % params['corrupt_ratio'])
+    if args.type == 'GRY' or args.type == 'ZIP':
+        print('Corruption ratio: %s' % params['corrupt_ratio'])
     print('Running on %s' % ('CPU' if args.cpu else 'GPU'))
     if not os.path.exists(params['checkpoint_path']):
         os.makedirs(params['checkpoint_path'])
