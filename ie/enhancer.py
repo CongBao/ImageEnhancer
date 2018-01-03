@@ -5,7 +5,7 @@ from __future__ import division, print_function
 import matplotlib.pyplot as plt
 import numpy as np
 from keras import layers
-from keras.callbacks import LambdaCallback, ModelCheckpoint, TensorBoard
+from keras.callbacks import LambdaCallback, LearningRateScheduler, ModelCheckpoint, TensorBoard
 from keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose, Input
 from keras.losses import binary_crossentropy
 from keras.models import Model
@@ -109,6 +109,7 @@ class Enhancer(object):
                        epochs=self.epoch,
                        validation_data=(self.corrupted_valid_set, self.valid_set),
                        callbacks=[TensorBoard(self.graph_path),
+                                  LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)),
                                   ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
                                   LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs)))])
 
