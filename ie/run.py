@@ -65,7 +65,7 @@ def main():
     print('Batch size: %s'       % params['batch_size'])
     print('Epoches to train: %s' % params['epoch'])
     print('Corruption type: %s'  % params['corrupt_type'])
-    if args.type == 'GRY' or args.type == 'ZIP':
+    if args.type != 'GRY' and args.type != 'ZIP':
         print('Corruption ratio: %s' % params['corrupt_ratio'])
     print('Running on %s' % ('CPU' if args.cpu else 'GPU'))
     if not os.path.exists(params['checkpoint_path']):

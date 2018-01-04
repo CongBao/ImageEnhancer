@@ -20,7 +20,7 @@ from utilities.load_data import load_img
 __author__ = 'Cong Bao'
 
 class Enhancer(object):
-    """ Denoising Convolutional Auto Encoder """
+    """ Image Enhancer """
 
     def __init__(self, **kwargs):
         self.img_dir = kwargs.get('img_dir')
@@ -35,14 +35,9 @@ class Enhancer(object):
         self.corrupt_type = kwargs.get('corrupt_type')
         self.corrupt_ratio = kwargs.get('corrupt_ratio')
 
-        self.in_shape = None
-        self.out_shape = None
-        self.train_set = None
-        self.valid_set = None
-        self.test_set = None
-        self.corrupted_train_set = None
-        self.corrupted_valid_set = None
-        self.corrupted_test_set = None
+        self.shape = {}
+        self.source = {}
+        self.corrupted = {}
 
         self.model = None
 
@@ -53,61 +48,57 @@ class Enhancer(object):
         """
         if self.corrupt_type is None:
             return source
-        if self.corrupt_type == 'ZIP':
-            num, row, col, channel = np.shape(source)
-            noised = np.zeros((num, int(row / 2), int(col / 2), channel))
-        else:
-            noised = np.copy(source)
-        for i in range(np.shape(source)[0]):
+        noised = np.zeros((np.shape(source)[0],) + self.shape['in'])
+        for i, raw in enumerate(source):
             if self.corrupt_type == 'GSN':
-                noised[i] = random_noise(noised[i], 'gaussian', var=self.corrupt_ratio)
+                noised[i] = random_noise(raw, 'gaussian', var=self.corrupt_ratio)
             elif self.corrupt_type == 'MSN':
-                noised[i] = random_noise(noised[i], 'pepper', amount=self.corrupt_ratio)
+                noised[i] = random_noise(raw, 'pepper', amount=self.corrupt_ratio)
             elif self.corrupt_type == 'SPN':
-                noised[i] = random_noise(noised[i], 's&p', amount=self.corrupt_ratio)
+                noised[i] = random_noise(raw, 's&p', amount=self.corrupt_ratio)
             elif self.corrupt_type == 'GSB':
-                noised[i] = gaussian(noised[i], sigma=self.corrupt_ratio, multichannel=True)
+                noised[i] = gaussian(raw, sigma=self.corrupt_ratio, multichannel=True)
             elif self.corrupt_type == 'GRY':
-                noised[i] = gray2rgb(rgb2gray(noised[i]))
+                noised[i] = gray2rgb(rgb2gray(raw))
             elif self.corrupt_type == 'ZIP':
-                noised[i] = rescale(source[i], 0.5, mode='constant')
+                noised[i] = rescale(raw, 0.5, mode='constant')
         return noised
 
     def load_data(self):
         """ load image data and initialize train, validation, test set """
         if self.corrupt_type == 'ZIP':
             row, col, channel = self.img_shape
-            self.in_shape = tuple([int(row / 2), int(col / 2), channel])
+            self.shape['in'] = tuple([int(row / 2), int(col / 2), channel])
         else:
-            self.in_shape = self.img_shape
-        self.out_shape = self.img_shape
-             
-        self.train_set, self.valid_set, self.test_set = load_img(self.img_dir, self.img_shape)
+            self.shape['in'] = self.img_shape
+        self.shape['out'] = self.img_shape
+
+        self.source['train'], self.source['valid'], self.source['test'] = load_img(self.img_dir, self.img_shape)
 
         print('Preprocessing data...')
-        self.train_set = self.train_set.astype('float32') / 255
-        self.valid_set = self.valid_set.astype('float32') / 255
-        self.test_set = self.test_set.astype('float32') / 255
-        self.corrupted_train_set = self._corrupt(self.train_set)
-        self.corrupted_valid_set = self._corrupt(self.valid_set)
-        self.corrupted_test_set = self._corrupt(self.test_set)
+        self.source['train'] = self.source['train'].astype('float32') / 255
+        self.source['valid'] = self.source['valid'].astype('float32') / 255
+        self.source['test'] = self.source['test'].astype('float32') / 255
+        self.corrupted['train'] = self._corrupt(self.source['train'])
+        self.corrupted['valid'] = self._corrupt(self.source['valid'])
+        self.corrupted['test'] = self._corrupt(self.source['test'])
 
     def build_model(self):
         """ build a given model """
-        _model = AbstractModel(self.in_shape)
+        _model = AbstractModel(self.shape['in'])
         if self.corrupt_type == 'ZIP':
-            _model = AugmentModel(self.in_shape)
+            _model = AugmentModel(self.shape['in'])
         else:
-            _model = DenoiseModel(self.in_shape)
+            _model = DenoiseModel(self.shape['in'])
         self.model = _model.construct()
 
     def train_model(self):
         """ train the model """
         self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
-        self.model.fit(self.corrupted_train_set, self.train_set,
+        self.model.fit(self.corrupted['train'], self.source['train'],
                        batch_size=self.batch_size,
                        epochs=self.epoch,
-                       validation_data=(self.corrupted_valid_set, self.valid_set),
+                       validation_data=(self.corrupted['valid'], self.source['valid']),
                        callbacks=[TensorBoard(self.graph_path),
                                   LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)),
                                   ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
@@ -116,7 +107,7 @@ class Enhancer(object):
     def evaluate_model(self):
         """ evaluate the model on test data set """
         print('Evaluating model...')
-        score = self.model.evaluate(self.corrupted_test_set, self.test_set, batch_size=self.batch_size)
+        score = self.model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
         print('The test loss is: %s' % score)
 
     def save_image(self, name, num=10):
@@ -124,20 +115,20 @@ class Enhancer(object):
             :param name: name of image
             :param num: number of images to draw, default 10
         """
-        processed = self.model.predict(self.corrupted_test_set)
+        processed = self.model.predict(self.corrupted['test'])
         plt.figure(facecolor='white', figsize=(16, 9))
         plt.subplots_adjust(wspace=0.1, hspace=0.05, top=1.0, bottom=0.0, left=0.1, right=0.9)
         for i in range(num):
             plt.subplot(3, num, i + 1)
-            plt.imshow(self.test_set[i].reshape(self.img_shape))
+            plt.imshow(self.source['test'][i].reshape(self.img_shape))
             plt.axis('off')
         for i in range(num):
             plt.subplot(3, num, i + num + 1)
-            plt.imshow(self.corrupted_test_set[i].reshape(self.in_shape))
+            plt.imshow(self.corrupted['test'][i].reshape(self.shape['in']))
             plt.axis('off')
         for i in range(num):
             plt.subplot(3, num, i + 2 * num + 1)
-            plt.imshow(processed[i].reshape(self.out_shape))
+            plt.imshow(processed[i].reshape(self.shape['out']))
             plt.axis('off')
         plt.savefig(self.example_path + name + '.png')
         plt.close('all')
@@ -145,18 +136,43 @@ class Enhancer(object):
 class AbstractModel(object):
     """ The abstract class of all models """
 
-    def __init__(self, in_shape):
-        self.in_shape = in_shape
+    def __init__(self, shape):
+        self.shape = shape
 
-    def fit_channel(self, layer, dim_out):
-        """ fit the channel of a layer
-            :param layer: input layer
-            :param dim_out: number of output channels
-            :return: a new layer with given channels
+    def conv(self, layer, filters, shrink=False):
+        """ simplify the convolutional layer with kernal size as (3, 3), and padding as same
+            :param layer: the input layer
+            :param filters: num of filters
+            :param shrink: whether reduce the size of image or not, default False
+            :return: a new layer after convoluation
         """
-        layer = Conv2D(dim_out, (1, 1), padding='same')(layer)
         layer = BatchNormalization()(layer)
+        layer = Activation('relu')(layer)
+        layer = Conv2D(filters, (3, 3), padding='same', strides=((2, 2) if shrink else (1, 1)))(layer)
         return layer
+
+    def deconv(self, layer, filters, expand=False):
+        """ simplify the de-convolutional layer with kernal size as (3, 3), and padding as same
+            :param layer: the input layer
+            :param filters: number of filters
+            :param expand: whether expand the size of image or not, default False
+            :return: a new layer after de-convoluation
+        """
+        layer = BatchNormalization()(layer)
+        layer = Activation('relu')(layer)
+        layer = Conv2DTranspose(filters, (3, 3), padding='same', strides=((2, 2) if expand else (1, 1)))(layer)
+        return layer
+
+    def merge(self, near, far, channels):
+        """ merge two layers, used in residual network
+            :param near: the layer close to current layer
+            :param far: the corresponding layer to merge
+            :param channels: number of channels of current layer
+            :return: a new layer after merging
+        """
+        far = Conv2D(channels, (1, 1), padding='same')(far)
+        far = BatchNormalization()(far)
+        return layers.add([near, far])
 
     def construct(self):
         """ construct the model """
@@ -166,102 +182,48 @@ class DenoiseModel(AbstractModel):
     """ the denoise model """
 
     def construct(self):
-        image = Input(shape=self.in_shape) # (r, c, 3)
-        conv1 = BatchNormalization()(image)
-        conv1 = Activation('relu')(conv1)
-        conv1 = Conv2D(32, (3, 3), padding='same')(conv1) # (r, c, 32)
-        conv2 = BatchNormalization()(conv1)
-        conv2 = Activation('relu')(conv2)
-        conv2 = Conv2D(32, (3, 3), padding='same', strides=(2, 2))(conv2) # (0.5r, 0.5c, 32)
-        conv3 = BatchNormalization()(conv2)
-        conv3 = Activation('relu')(conv3)
-        conv3 = Conv2D(64, (3, 3), padding='same')(conv3) # (0.5r, 0.5c, 64)
-        conv4 = BatchNormalization()(conv3)
-        conv4 = Activation('relu')(conv4)
-        conv4 = Conv2D(64, (3, 3), padding='same', strides=(2, 2))(conv4) # (0.25r, 0.25c, 64)
-        conv5 = BatchNormalization()(conv4)
-        conv5 = Activation('relu')(conv5)
-        conv5 = Conv2D(128, (3, 3), padding='same')(conv5) # (0.25r, 0.25c, 128)
-        conv6 = BatchNormalization()(conv5)
-        conv6 = Activation('relu')(conv6)
-        conv6 = Conv2D(128, (3, 3), padding='same', strides=(2, 2))(conv6) # (0.125r, 0.125c, 128)
-        deconv6 = BatchNormalization()(conv6)
-        deconv6 = Activation('relu')(deconv6)
-        deconv6 = Conv2DTranspose(128, (3, 3), padding='same')(deconv6) # (0.125r, 0.125c, 128)
-        deconv5 = BatchNormalization()(deconv6)
-        deconv5 = Activation('relu')(deconv5)
-        deconv5 = Conv2DTranspose(128, (3, 3), padding='same', strides=(2, 2))(deconv5) # (0.25r, 0.25c, 128)
-        deconv4 = layers.add([deconv5, self.fit_channel(conv4, 128)])
-        deconv4 = BatchNormalization()(deconv4)
-        deconv4 = Activation('relu')(deconv4)
-        deconv4 = Conv2DTranspose(64, (3, 3), padding='same')(deconv4) # (0.25r, 0.25c, 64)
-        deconv3 = BatchNormalization()(deconv4)
-        deconv3 = Activation('relu')(deconv3)
-        deconv3 = Conv2DTranspose(64, (3, 3), padding='same', strides=(2, 2))(deconv3) # (0.5r, 0.5c, 64)
-        deconv2 = layers.add([deconv3, self.fit_channel(conv2, 64)])
-        deconv2 = BatchNormalization()(deconv2)
-        deconv2 = Activation('relu')(deconv2)
-        deconv2 = Conv2DTranspose(32, (3, 3), padding='same')(deconv2) # (0.5r, 0.5c, 32)
-        deconv1 = BatchNormalization()(deconv2)
-        deconv1 = Activation('relu')(deconv1)
-        deconv1 = Conv2DTranspose(32, (3, 3), padding='same', strides=(2, 2))(deconv1) # (r, c, 32)
-        out = layers.add([deconv1, self.fit_channel(image, 32)])
-        out = BatchNormalization()(out)
-        out = Activation('relu')(out)
-        out = Conv2DTranspose(self.in_shape[2], (3, 3), activation='sigmoid', padding='same')(out) # (r, c, 3)
+        image = Input(shape=self.shape)           # (r, c, 3)
+        conv1 = self.conv(image, 32)              # (r, c, 32)
+        conv2 = self.conv(conv1, 32, True)        # (0.5r, 0.5c, 32)
+        conv3 = self.conv(conv2, 64)              # (0.5r, 0.5c, 64)
+        conv4 = self.conv(conv3, 64, True)        # (0.25r, 0.25c, 64)
+        conv5 = self.conv(conv4, 128)             # (0.25r, 0.25c, 128)
+        conv6 = self.conv(conv5, 128, True)       # (0.125r, 0.125c, 128)
+        deconv6 = self.deconv(conv6, 128)         # (0.125r, 0.125c, 128)
+        deconv5 = self.deconv(deconv6, 128, True) # (0.25r, 0.25c, 128)
+        deconv4 = self.merge(deconv5, conv4, 128) # (0.25r, 0.25c, 128)
+        deconv4 = self.deconv(deconv4, 64)        # (0.25r, 0.25c, 64)
+        deconv3 = self.deconv(deconv4, 64, True)  # (0.5r, 0.5c, 64)
+        deconv2 = self.merge(deconv3, conv2, 64)  # (0.5r, 0.5c, 64)
+        deconv2 = self.deconv(deconv2, 32)        # (0.5r, 0.5c, 32)
+        deconv1 = self.deconv(deconv2, 32, True)  # (r, c, 32)
+        out = self.merge(deconv1, image, 32)      # (r, c, 32)
+        out = self.deconv(out, self.shape[2])     # (r, c, 3)
+        out = Activation('sigmoid')(out)
         return Model(image, out)
 
 class AugmentModel(AbstractModel):
     """ The augment model """
 
     def construct(self):
-        image = Input(shape=self.in_shape) # (0.5r, 0.5c, 3)
-        conv1 = BatchNormalization()(image)
-        conv1 = Activation('relu')(conv1)
-        conv1 = Conv2D(32, (3, 3), padding='same')(conv1) # (0.5r, 0.5c, 32)
-        conv2 = BatchNormalization()(conv1)
-        conv2 = Activation('relu')(conv2)
-        conv2 = Conv2D(32, (3, 3), padding='same', strides=(2, 2))(conv2) # (0.25r, 0.25c, 32)
-        conv3 = BatchNormalization()(conv2)
-        conv3 = Activation('relu')(conv3)
-        conv3 = Conv2D(64, (3, 3), padding='same')(conv3) # (0.25r, 0.25c, 64)
-        conv4 = BatchNormalization()(conv3)
-        conv4 = Activation('relu')(conv4)
-        conv4 = Conv2D(64, (3, 3), padding='same', strides=(2, 2))(conv4) # (0.125r, 0.125c, 64)
-        conv5 = BatchNormalization()(conv4)
-        conv5 = Activation('relu')(conv5)
-        conv5 = Conv2D(128, (3, 3), padding='same')(conv5) # (0.125r, 0.125c, 128)
-        conv6 = BatchNormalization()(conv5)
-        conv6 = Activation('relu')(conv6)
-        conv6 = Conv2D(128, (3, 3), padding='same', strides=(2, 2))(conv6) # (0.0625r, 0.0625c, 128)
-        deconv6 = BatchNormalization()(conv6)
-        deconv6 = Activation('relu')(deconv6)
-        deconv6 = Conv2DTranspose(128, (3, 3), padding='same')(deconv6) # (0.0625r, 0.0625c, 128)
-        deconv5 = BatchNormalization()(deconv6)
-        deconv5 = Activation('relu')(deconv5)
-        deconv5 = Conv2DTranspose(128, (3, 3), padding='same', strides=(2, 2))(deconv5) # (0.125r, 0.125c, 128)
-        deconv4 = layers.add([deconv5, self.fit_channel(conv4, 128)])
-        deconv4 = BatchNormalization()(deconv4)
-        deconv4 = Activation('relu')(deconv4)
-        deconv4 = Conv2DTranspose(64, (3, 3), padding='same')(deconv4) # (0.125r, 0.125c, 64)
-        deconv3 = BatchNormalization()(deconv4)
-        deconv3 = Activation('relu')(deconv3)
-        deconv3 = Conv2DTranspose(64, (3, 3), padding='same', strides=(2, 2))(deconv3) # (0.25r, 0.25c, 64)
-        deconv2 = layers.add([deconv3, self.fit_channel(conv2, 64)])
-        deconv2 = BatchNormalization()(deconv2)
-        deconv2 = Activation('relu')(deconv2)
-        deconv2 = Conv2DTranspose(32, (3, 3), padding='same')(deconv2) # (0.25r, 0.25c, 32)
-        deconv1 = BatchNormalization()(deconv2)
-        deconv1 = Activation('relu')(deconv1)
-        deconv1 = Conv2DTranspose(32, (3, 3), padding='same', strides=(2, 2))(deconv1) # (0.5r, 0.5c, 32)
-        deconv0 = layers.add([deconv1, self.fit_channel(image, 32)])
-        deconv0 = BatchNormalization()(deconv0)
-        deconv0 = Activation('relu')(deconv0)
-        deconv0 = Conv2DTranspose(16, (3, 3), padding='same')(deconv0) # (0.5r, 0.5c, 3)
-        deconv0 = BatchNormalization()(deconv0)
-        deconv0 = Activation('relu')(deconv0)
-        deconv0 = Conv2DTranspose(16, (3, 3), padding='same', strides=(2, 2))(deconv0) # (r, c, 3)
-        out = BatchNormalization()(deconv0)
-        out = Activation('relu')(out)
-        out = Conv2DTranspose(self.in_shape[2], (3, 3), activation='sigmoid', padding='same')(out)
+        image = Input(shape=self.shape)           # (0.5r, 0.5c, 3)
+        conv1 = self.conv(image, 32)              # (0.5r, 0.5c, 32)
+        conv2 = self.conv(conv1, 32, True)        # (0.25r, 0.25c, 32)
+        conv3 = self.conv(conv2, 64)              # (0.25r, 0.25c, 64)
+        conv4 = self.conv(conv3, 64, True)        # (0.125r, 0.125c, 64)
+        conv5 = self.conv(conv4, 128)             # (0.125r, 0.125c, 128)
+        conv6 = self.conv(conv5, 128, True)       # (0.0625r, 0.0625c, 128)
+        deconv6 = self.deconv(conv6, 128)         # (0.0625r, 0.0625c, 128)
+        deconv5 = self.deconv(deconv6, 128, True) # (0.125r, 0.125c, 128)
+        deconv4 = self.merge(deconv5, conv4, 128) # (0.125r, 0.125c, 128)
+        deconv4 = self.deconv(deconv4, 64)        # (0.125r, 0.125c, 64)
+        deconv3 = self.deconv(deconv4, 64, True)  # (0.25r, 0.25c, 64)
+        deconv2 = self.merge(deconv3, conv2, 64)  # (0.25r, 0.25c, 64)
+        deconv2 = self.deconv(deconv2, 32)        # (0.25r, 0.25c, 32)
+        deconv1 = self.deconv(deconv2, 32, True)  # (0.5r, 0.5c, 32)
+        deconv0 = self.merge(deconv1, image, 32)  # (0.5r, 0.5c, 32)
+        deconv0 = self.deconv(deconv0, 16)        # (0.5r, 0.5c, 16)
+        deconv0 = self.deconv(deconv0, 16, True)  # (r, c, 16)
+        out = self.deconv(deconv0, self.shape[2]) # (r, c, 3)
+        out = Activation('sigmoid')(out)
         return Model(image, out)
