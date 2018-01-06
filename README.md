@@ -43,18 +43,20 @@ Trained on NVIDIA Tesla K40c (12GB)
 
 ## Usage:
 
+### Train Models
+
 Simplest (input directory and image shape are required)
 
-    python run.py -i ~/data/images/ -s 128 128 3
+    python train.py -i ~/data/images/ -s 128 128 3
 
 Specify hyperparameters (learning rate, batch size, epoches)
 
-    python run.py -i ~/data/images/ -s 128 128 3 -r 0.001 -b 64 -e 50
+    python train.py -i ~/data/images/ -s 128 128 3 -r 0.001 -b 64 -e 50
 
 Specify corruption types and/or ratio
 
-    python run.py -i ~/data/images/ -s 128 128 3 -T ZIP
-    python run.py -i ~/data/images/ -s 128 128 3 -T GSN -R 0.05
+    python train.py -i ~/data/images/ -s 128 128 3 -T ZIP
+    python train.py -i ~/data/images/ -s 128 128 3 -T GSN -R 0.05
 
 *Till now, there are several corruption types:*
 + **_GSN_** Gaussian Noise
@@ -66,11 +68,33 @@ Specify corruption types and/or ratio
 
 Specify file path
 
-    python run.py -i ~/data/images/ -s 128 128 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
+    python train.py -i ~/data/images/ -s 128 128 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
 
 Training on CPU
 
-    python run.py -i ~/data/images/ -s 128 128 3 --cpu-only
+    python train.py -i ~/data/images/ -s 128 128 3 --cpu-only
+
+### Process Images with Trained Models
+
+Simplest (input directory and image shape are required)
+
+    python process.py -i ~/data/images/ -s 128 128 3
+
+Specify batch size
+
+    python process.py -i ~/data/images/ -s 128 128 3 -b 64
+
+Specify corruption types
+
+    python process.py -i ~/data/images/ -s 128 128 3 -T GRY
+
+Specify checkpoint path and/or name
+
+    python process.py -i ~/data/images/ -s 128 128 3 --checkpoint-path ./checkpoints/ --checkpoint-name weights.20-0.55.hdf5
+
+Training on CPU
+
+    python train.py -i ~/data/images/ -s 128 128 3 --cpu-only
 
 ## References
 

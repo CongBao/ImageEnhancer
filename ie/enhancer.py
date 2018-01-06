@@ -15,7 +15,7 @@ from skimage.filters import gaussian
 from skimage.transform import rescale
 from skimage.util import random_noise
 
-from utilities.load_data import load_img
+from utilities.image_io import load_img, save_img
 
 __author__ = 'Cong Bao'
 
@@ -24,9 +24,11 @@ class Enhancer(object):
 
     def __init__(self, **kwargs):
         self.img_dir = kwargs.get('img_dir')
+        self.res_dir = kwargs.get('res_dir')
         self.img_shape = kwargs.get('img_shape')
         self.graph_path = kwargs.get('graph_path')
         self.checkpoint_path = kwargs.get('checkpoint_path')
+        self.checkpoint_name = kwargs.get('checkpoint_name')
         self.example_path = kwargs.get('example_path')
 
         self.learning_rate = kwargs.get('learning_rate')
@@ -64,17 +66,21 @@ class Enhancer(object):
                 noised[i] = rescale(raw, 0.5, mode='constant')
         return noised
 
-    def load_data(self):
-        """ load image data and initialize train, validation, test set """
+    def load_data(self, process=False):
+        """ load image data and initialize train, validation, test set
+            :param process: whether the data is to be processed by trained model, default False
+        """
         if self.corrupt_type == 'ZIP':
             row, col, channel = self.img_shape
             self.shape['in'] = tuple([int(row / 2), int(col / 2), channel])
         else:
             self.shape['in'] = self.img_shape
         self.shape['out'] = self.img_shape
-
+        if process:
+            self.source['process'] = load_img(self.img_dir, self.img_shape, ratio=None)
+            self.source['process'] = self.source['process'].astype('float32') / 255
+            return
         self.source['train'], self.source['valid'], self.source['test'] = load_img(self.img_dir, self.img_shape)
-
         print('Preprocessing data...')
         self.source['train'] = self.source['train'].astype('float32') / 255
         self.source['valid'] = self.source['valid'].astype('float32') / 255
@@ -92,23 +98,41 @@ class Enhancer(object):
             _model = DenoiseModel(self.shape['in'])
         self.model = _model.construct()
 
+    def load_model(self):
+        """ load model from file system
+            :param name: the name of weight file, if None, use the best weights, default None
+        """
+        if self.checkpoint_name is None:
+            self.checkpoint_name = 'weights.best.hdf5'
+        self.model.load_weights(self.checkpoint_path + self.checkpoint_name)
+
     def train_model(self):
         """ train the model """
+        callbacks = []
+        callbacks.append(TensorBoard(self.graph_path))
+        callbacks.append(LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)))
+        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'weights.best.hdf5', save_best_only=True, save_weights_only=True))
+        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', save_weights_only=True))
+        callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
         self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
         self.model.fit(self.corrupted['train'], self.source['train'],
                        batch_size=self.batch_size,
                        epochs=self.epoch,
-                       validation_data=(self.corrupted['valid'], self.source['valid']),
-                       callbacks=[TensorBoard(self.graph_path),
-                                  LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)),
-                                  ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
-                                  LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs)))])
+                       callbacks=callbacks,
+                       validation_data=(self.corrupted['valid'], self.source['valid']))
 
     def evaluate_model(self):
         """ evaluate the model on test data set """
         print('Evaluating model...')
         score = self.model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
         print('The test loss is: %s' % score)
+
+    def process(self):
+        """ process images with trained model """
+        print('Processing images...')
+        processed = self.model.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
+        save_img(self.res_dir, processed)
+        print('Complete')
 
     def save_image(self, name, num=10):
         """ save the image to file system
