@@ -5,5 +5,4 @@ __pycache__/
 graphs/
 checkpoints/
 examples/
-log/
-result/
+results/
