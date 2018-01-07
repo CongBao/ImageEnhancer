@@ -94,7 +94,7 @@ Specify checkpoint path and/or name
 
 Processing on CPU
 
-    python train.py -i ~/data/images/ -s 128 128 3 --cpu-only
+    python process.py -i ~/data/images/ -s 128 128 3 --cpu-only
 
 ## References
 
