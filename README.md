@@ -17,27 +17,27 @@ Learning rate: 0.001, Batch size: 128, Epoch: 50
 
 Trained on NVIDIA Tesla K40c (12GB)
 
-| Corruption type      | Ratio
-| :------------------: | :---:
-| GSN (Gaussian Noise) | 2%
+| Corruption type      | Ratio |
+| :------------------: | :---: |
+| GSN (Gaussian Noise) | 2%    |
 
 ![gsn](gsn.png)
 
-| Corruption type     | Ratio
-| :-----------------: | :---:
-| GSB (Gaussian Blur) | 2x
+| Corruption type     | Ratio |
+| :-----------------: | :---: |
+| GSB (Gaussian Blur) | 2x    |
 
 ![gsb](gsb.png)
 
-| Corruption type | Ratio
-| :-------------: | :---:
-| GRY             | N/A
+| Corruption type | Ratio |
+| :-------------: | :---: |
+| GRY             | N/A   |
 
 ![gry](gry.png)
 
-| Corruption type | Ratio
-| :-------------: | :---:
-| ZIP             | N/A
+| Corruption type | Ratio |
+| :-------------: | :---: |
+| ZIP             | N/A   |
 
 ![zip](zip.png)
 
@@ -45,12 +45,12 @@ Trained on NVIDIA Tesla K40c (12GB)
 
 ### Train Models
 
-Simplest (input directory and image shape are required)
+Simplest (input directory and image shape are required)  
 default corruption type is GSN, default ratio is 0.02
 
     python train.py -i ~/data/images/ -s 128 128 3
 
-Specify hyperparameters (learning rate, batch size, epoches)
+Specify hyperparameters (learning rate, batch size, epoches)  
 default learning rate is 0.001, batch size is 128, epoch is 50
 
     python train.py -i ~/data/images/ -s 128 128 3 -r 0.001 -b 64 -e 100
@@ -78,12 +78,12 @@ Training on CPU
 
 ### Process Images with Trained Models
 
-Simplest (input directory and image shape are required)
+Simplest (input directory and image shape are required)  
 default corruption type is GSN, default checkpoint file is ./checkpoints/weights.best.hdf5
 
     python process.py -i ~/data/images/ -s 128 128 3
 
-Specify batch size
+Specify batch size  
 default is 128
 
     python process.py -i ~/data/images/ -s 128 128 3 -b 64
