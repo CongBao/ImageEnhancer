@@ -162,7 +162,9 @@ class AbstractModel(object):
         self.shape = shape
 
     def conv(self, layer, filters, shrink=False):
-        """ simplify the convolutional layer with kernal size as (3, 3), and padding as same
+        """ simplify the convolutional layer with kernal size as (3, 3), and padding as same;
+            there is no pooling layer and is replaced by convolution layer with stride (2, 2);
+            each layer follows by a batch normalization layer and a relu activation layer
             :param layer: the input layer
             :param filters: num of filters
             :param shrink: whether reduce the size of image or not, default False
@@ -174,7 +176,9 @@ class AbstractModel(object):
         return layer
 
     def deconv(self, layer, filters, expand=False):
-        """ simplify the de-convolutional layer with kernal size as (3, 3), and padding as same
+        """ simplify the de-convolutional layer with kernal size as (3, 3), and padding as same;
+            there is no pooling layer and is replaced by convolution layer with stride (2, 2);
+            each layer follows by a batch normalization layer and a relu activation layer
             :param layer: the input layer
             :param filters: number of filters
             :param expand: whether expand the size of image or not, default False
@@ -186,7 +190,7 @@ class AbstractModel(object):
         return layer
 
     def merge(self, near, far, channels):
-        """ merge two layers, used in residual network
+        """ merge two layers, used in residual network's shortcut connection
             :param near: the layer close to current layer
             :param far: the corresponding layer to merge
             :param channels: number of channels of current layer
