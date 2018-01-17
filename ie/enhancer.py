@@ -99,9 +99,7 @@ class Enhancer(object):
         self.model = _model.construct()
 
     def load_model(self):
-        """ load model from file system
-            :param name: the name of weight file, if None, use the best weights, default None
-        """
+        """ load model from file system """
         if self.checkpoint_name is None:
             self.checkpoint_name = 'weights.best.hdf5'
         self.model.load_weights(self.checkpoint_path + self.checkpoint_name)
