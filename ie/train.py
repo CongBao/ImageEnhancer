@@ -17,7 +17,6 @@ EXAMPLE_PATH = './examples/'
 
 CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'GRY', 'ZIP']
 
-MODEL_TYPE = 'denoise'
 LEARNING_RATE = 0.001
 BATCH_SIZE = 128
 EPOCH = 50
