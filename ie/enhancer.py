@@ -65,8 +65,9 @@ class Enhancer(object):
                 noised[i] = gray2rgb(rgb2gray(raw))
             elif self.corrupt_type == 'BLK':
                 row, col = np.random.randint(min(self.shape['in'][:2]), size=2)
-                noised[i] = np.copy(raw)
-                noised[i][circle(row, col, self.corrupt_ratio)] = 0
+                temp = np.copy(raw)
+                temp[circle(row, col, self.corrupt_ratio)] = 0
+                noised[i] = temp
             elif self.corrupt_type == 'ZIP':
                 noised[i] = rescale(raw, 0.5, mode='constant')
         return noised
