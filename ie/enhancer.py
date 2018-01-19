@@ -2,6 +2,8 @@
 
 from __future__ import division, print_function
 
+import random
+
 import matplotlib.pyplot as plt
 import numpy as np
 from keras import layers
@@ -64,10 +66,11 @@ class Enhancer(object):
             elif self.corrupt_type == 'GRY':
                 noised[i] = gray2rgb(rgb2gray(raw))
             elif self.corrupt_type == 'BLK':
-                row, col = np.random.randint(min(self.shape['in'][:2]), size=2)
-                temp = np.copy(raw)
-                temp[circle(row, col, self.corrupt_ratio)] = 0
-                noised[i] = temp
+                rad = int(self.corrupt_ratio)
+                row = random.randint(rad, self.shape['in'][0] - rad - 1)
+                col = random.randint(rad, self.shape['in'][1] - rad - 1)
+                noised[i] = np.copy(raw)
+                noised[i][circle(row, col, self.corrupt_ratio)] = 0
             elif self.corrupt_type == 'ZIP':
                 noised[i] = rescale(raw, 0.5, mode='constant')
         return noised
