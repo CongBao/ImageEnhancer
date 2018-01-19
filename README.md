@@ -21,31 +21,31 @@ Trained on NVIDIA Tesla K40c (12GB)
 | :------------------: | :---: |
 | GSN (Gaussian Noise) | 2%    |
 
-![gsn](gsn.png)
+![gsn](samples/gsn.png)
 
 | Corruption type     | Ratio |
 | :-----------------: | :---: |
 | GSB (Gaussian Blur) | 2x    |
 
-![gsb](gsb.png)
+![gsb](samples/gsb.png)
 
 | Corruption type | Ratio |
 | :-------------: | :---: |
 | BLK             | 25    |
 
-![blk](blk.png)
+![blk](samples/blk.png)
 
 | Corruption type | Ratio |
 | :-------------: | :---: |
 | GRY             | N/A   |
 
-![gry](gry.png)
+![gry](samples/gry.png)
 
 | Corruption type | Ratio |
 | :-------------: | :---: |
 | ZIP             | N/A   |
 
-![zip](zip.png)
+![zip](samples/zip.png)
 
 ## Usage:
 
