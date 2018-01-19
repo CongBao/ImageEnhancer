@@ -11,6 +11,7 @@ from keras.losses import binary_crossentropy
 from keras.models import Model
 from keras.optimizers import Adam
 from skimage.color import gray2rgb, rgb2gray
+from skimage.draw import circle
 from skimage.filters import gaussian
 from skimage.transform import rescale
 from skimage.util import random_noise
@@ -62,6 +63,10 @@ class Enhancer(object):
                 noised[i] = gaussian(raw, sigma=self.corrupt_ratio, multichannel=True)
             elif self.corrupt_type == 'GRY':
                 noised[i] = gray2rgb(rgb2gray(raw))
+            elif self.corrupt_type == 'BLK':
+                row, col = np.random.randint(min(self.shape['in']), size=2)
+                noised[i] = np.copy(raw)
+                noised[i][circle(row, col, self.corrupt_ratio)] = 0
             elif self.corrupt_type == 'ZIP':
                 noised[i] = rescale(raw, 0.5, mode='constant')
         return noised

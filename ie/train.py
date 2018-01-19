@@ -15,7 +15,7 @@ GRAPH_PATH = './graphs/'
 CHECKPOINT_PATH = './checkpoints/'
 EXAMPLE_PATH = './examples/'
 
-CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'GRY', 'ZIP']
+CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'GRY', 'BLK', 'ZIP']
 
 LEARNING_RATE = 0.001
 BATCH_SIZE = 128
