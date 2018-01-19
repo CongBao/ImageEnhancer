@@ -31,6 +31,12 @@ Trained on NVIDIA Tesla K40c (12GB)
 
 | Corruption type | Ratio |
 | :-------------: | :---: |
+| BLK             | 25    |
+
+![blk](blk.png)
+
+| Corruption type | Ratio |
+| :-------------: | :---: |
 | GRY             | N/A   |
 
 ![gry](gry.png)
@@ -61,10 +67,11 @@ Specify corruption types and/or ratio
     python train.py -i ~/data/images/ -s 128 128 3 -T GSN -R 0.05
 
 *Till now, there are several corruption types:*
-+ **_GSN_** Gaussian Noise
-+ **_MSN_** Masking Noise
-+ **_SPN_** Salt & Pepper Noise
-+ **_GSB_** Gaussian Blur
++ **_GSN_** Gaussian Noise, -R defines noise ratio
++ **_MSN_** Masking Noise, -R defines noise ratio
++ **_SPN_** Salt & Pepper Noise, -R defines noise ratio
++ **_GSB_** Gaussian Blur, -R defines blur ratio
++ **_BLK_** Put a black circle on a random position of raw image, -R defines circle radius
 + **_GRY_** Transform RGB image to grayscale image (raw image should be RGB)
 + **_ZIP_** Zip image as half of original resolution
 
