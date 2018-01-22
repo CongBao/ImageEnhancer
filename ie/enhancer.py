@@ -37,6 +37,7 @@ class Enhancer(object):
         self.learning_rate = kwargs.get('learning_rate')
         self.batch_size = kwargs.get('batch_size')
         self.epoch = kwargs.get('epoch')
+        self.activ = kwargs.get('activ_func')
         self.corrupt_type = kwargs.get('corrupt_type')
         self.corrupt_ratio = kwargs.get('corrupt_ratio')
 
@@ -100,11 +101,11 @@ class Enhancer(object):
 
     def build_model(self):
         """ build a given model """
-        _model = AbstractModel(self.shape['in'])
+        _model = AbstractModel(self.shape['in'], self.activ)
         if self.corrupt_type == 'ZIP':
-            _model = AugmentModel(self.shape['in'])
+            _model = AugmentModel(self.shape['in'], self.activ)
         else:
-            _model = DenoiseModel(self.shape['in'])
+            _model = DenoiseModel(self.shape['in'], self.activ)
         self.model = _model.construct()
 
     def load_model(self):
@@ -167,8 +168,21 @@ class Enhancer(object):
 class AbstractModel(object):
     """ The abstract class of all models """
 
-    def __init__(self, shape):
+    def __init__(self, shape, activ):
         self.shape = shape
+        self.activ = activ
+
+    def activate(self, layer):
+        """ activate layer with given activation function
+            :param layer: the input layer
+            :return: the layer after activation
+        """
+        if self.activ == 'lrelu':
+            return layers.LeakyReLU()(layer)
+        elif self.activ == 'prelu':
+            return layers.PReLU()(layer)
+        else:
+            return Activation(self.activ)(layer)
 
     def conv(self, layer, filters, shrink=False):
         """ simplify the convolutional layer with kernal size as (3, 3), and padding as same;
@@ -180,7 +194,7 @@ class AbstractModel(object):
             :return: a new layer after convoluation
         """
         layer = BatchNormalization()(layer)
-        layer = Activation('relu')(layer)
+        layer = self.activate(layer)
         layer = Conv2D(filters, (3, 3), padding='same', strides=((2, 2) if shrink else (1, 1)))(layer)
         return layer
 
@@ -194,7 +208,7 @@ class AbstractModel(object):
             :return: a new layer after de-convoluation
         """
         layer = BatchNormalization()(layer)
-        layer = Activation('relu')(layer)
+        layer = self.activate(layer)
         layer = Conv2DTranspose(filters, (3, 3), padding='same', strides=((2, 2) if expand else (1, 1)))(layer)
         return layer
 

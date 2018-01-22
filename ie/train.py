@@ -16,10 +16,12 @@ CHECKPOINT_PATH = './checkpoints/'
 EXAMPLE_PATH = './examples/'
 
 CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'GRY', 'BLK', 'ZIP']
+ACTIVATIONS = ['linear', 'sigmoid', 'tanh', 'relu', 'lrelu', 'prelu', 'elu', 'selu']
 
 LEARNING_RATE = 0.001
 BATCH_SIZE = 128
 EPOCH = 50
+ACTIV_FUNC = 'relu'
 CORRUPT_TYPE = 'GSN'
 CORRUPT_RATIO = 0.02
 
@@ -32,6 +34,7 @@ def main():
     add_arg('-r', dest='rate',   type=float, default=LEARNING_RATE,    help='learning rate, default %s' % LEARNING_RATE)
     add_arg('-b', dest='batch',  type=int,   default=BATCH_SIZE,       help='batch size, default %s' % BATCH_SIZE)
     add_arg('-e', dest='epoch',  type=int,   default=EPOCH,            help='number of epoches, default %s' % EPOCH)
+    add_arg('-a', dest='activ',  type=str,   default=ACTIV_FUNC,       help='activation function within %s, default %s' % (ACTIVATIONS, ACTIV_FUNC))
     add_arg('-T', dest='type',   type=str,   default=CORRUPT_TYPE,     help='type of corruption, within %s' % CORRUPT_TYPES)
     add_arg('-R', dest='ratio',  type=float, default=CORRUPT_RATIO,    help='ratio of corruption, default %s' % CORRUPT_RATIO)
     add_arg('--graph-path',      dest='graph',      type=str, default=GRAPH_PATH,      help='path to save tensor graphs, default %s' % GRAPH_PATH)
@@ -41,6 +44,7 @@ def main():
     args = parser.parse_args()
     if args.cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    assert args.activ in ACTIVATIONS
     assert args.type in CORRUPT_TYPES
     corr = Correction().correct
     params = {
@@ -52,18 +56,20 @@ def main():
         'learning_rate':   args.rate,
         'batch_size':      args.batch,
         'epoch':           args.epoch,
+        'activ_func':      args.activ,
         'corrupt_type':    args.type,
         'corrupt_ratio':   args.ratio
     }
-    print('Image directory: %s'  % params['img_dir'])
-    print('Graph path: %s'       % params['graph_path'])
-    print('Checkpoint path: %s'  % params['checkpoint_path'])
-    print('Example path: %s'     % params['example_path'])
-    print('Shape of image: %s'   %(params['img_shape'],))
-    print('Learning rate: %s'    % params['learning_rate'])
-    print('Batch size: %s'       % params['batch_size'])
-    print('Epoches to train: %s' % params['epoch'])
-    print('Corruption type: %s'  % params['corrupt_type'])
+    print('Image directory: %s'     % params['img_dir'])
+    print('Graph path: %s'          % params['graph_path'])
+    print('Checkpoint path: %s'     % params['checkpoint_path'])
+    print('Example path: %s'        % params['example_path'])
+    print('Shape of image: %s'      %(params['img_shape'],))
+    print('Learning rate: %s'       % params['learning_rate'])
+    print('Batch size: %s'          % params['batch_size'])
+    print('Epoches to train: %s'    % params['epoch'])
+    print('Activation function: %s' % params['activ_func'])
+    print('Corruption type: %s'     % params['corrupt_type'])
     if args.type != 'GRY' and args.type != 'ZIP':
         print('Corruption ratio: %s' % params['corrupt_ratio'])
     print('Running on %s' % ('CPU' if args.cpu else 'GPU'))
