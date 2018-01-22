@@ -79,6 +79,11 @@ Specify file path
 
     python train.py -i ~/data/images/ -s 128 128 3 --graph-path ./graphs/ --checkpoint-path ./checkpoints/ --example-path ./examples/
 
+Save checkpoints with best validation results only  
+by default, both best checkpoint and checkpoints of each epoch will be saved, set this flag can reduce the usage of storage
+
+    python train.py -i ~/data/images/ -s 128 128 3 --best-only
+
 Training on CPU
 
     python train.py -i ~/data/images/ -s 128 128 3 --cpu-only
