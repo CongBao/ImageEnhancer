@@ -12,8 +12,6 @@ __author__ = 'Cong Bao'
 CHECKPOINT_PATH = './checkpoints/'
 OUTPUT_PATH = './results/'
 
-CORRUPT_TYPES = ['GSN', 'MSN', 'SPN', 'GSB', 'GRY', 'BLK', 'ZIP']
-
 BATCH_SIZE = 128
 
 CHECKPOINT_NAME = 'checkpoint.best.hdf5'
