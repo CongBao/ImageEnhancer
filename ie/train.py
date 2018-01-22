@@ -40,6 +40,7 @@ def main():
     add_arg('--graph-path',      dest='graph',      type=str, default=GRAPH_PATH,      help='path to save tensor graphs, default %s' % GRAPH_PATH)
     add_arg('--checkpoint-path', dest='checkpoint', type=str, default=CHECKPOINT_PATH, help='path to save checkpoint files, default %s' % CHECKPOINT_PATH)
     add_arg('--example-path',    dest='example',    type=str, default=EXAMPLE_PATH,    help='path to save example images, default %s' % EXAMPLE_PATH)
+    add_arg('--best-only',       dest='best',       action='store_true',               help='store only checkpoints with best validation results, default False')
     add_arg('--cpu-only',        dest='cpu',        action='store_true',               help='whether use cpu only or not, default False')
     args = parser.parse_args()
     if args.cpu:
@@ -58,7 +59,8 @@ def main():
         'epoch':           args.epoch,
         'activ_func':      args.activ,
         'corrupt_type':    args.type,
-        'corrupt_ratio':   args.ratio
+        'corrupt_ratio':   args.ratio,
+        'best_cp':         args.best
     }
     print('Image directory: %s'     % params['img_dir'])
     print('Graph path: %s'          % params['graph_path'])
@@ -71,7 +73,8 @@ def main():
     print('Activation function: %s' % params['activ_func'])
     print('Corruption type: %s'     % params['corrupt_type'])
     if args.type != 'GRY' and args.type != 'ZIP':
-        print('Corruption ratio: %s' % params['corrupt_ratio'])
+        print('Corruption ratio: %s'        % params['corrupt_ratio'])
+    print('Store best checkpoints only: %s' % params['best_cp'])
     print('Running on %s' % ('CPU' if args.cpu else 'GPU'))
     if not os.path.exists(params['checkpoint_path']):
         os.makedirs(params['checkpoint_path'])

@@ -40,6 +40,7 @@ class Enhancer(object):
         self.activ = kwargs.get('activ_func')
         self.corrupt_type = kwargs.get('corrupt_type')
         self.corrupt_ratio = kwargs.get('corrupt_ratio')
+        self.best_cp = kwargs.get('best_cp')
 
         self.shape = {}
         self.source = {}
@@ -120,7 +121,8 @@ class Enhancer(object):
         callbacks.append(TensorBoard(self.graph_path))
         callbacks.append(LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)))
         callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.best.hdf5', save_best_only=True))
-        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
+        if not self.best_cp:
+            callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
         callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
         self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
         self.model.fit(self.corrupted['train'], self.source['train'],
