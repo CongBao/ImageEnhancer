@@ -10,7 +10,7 @@ from keras import layers
 from keras.callbacks import LambdaCallback, LearningRateScheduler, ModelCheckpoint, TensorBoard
 from keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose, Input
 from keras.losses import binary_crossentropy
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.optimizers import Adam
 from skimage.color import gray2rgb, rgb2gray
 from skimage.draw import circle
@@ -111,16 +111,16 @@ class Enhancer(object):
     def load_model(self):
         """ load model from file system """
         if self.checkpoint_name is None:
-            self.checkpoint_name = 'weights.best.hdf5'
-        self.model.load_weights(self.checkpoint_path + self.checkpoint_name)
+            self.checkpoint_name = 'checkpoint.best.hdf5'
+        self.model = load_model(self.checkpoint_path + self.checkpoint_name)
 
     def train_model(self):
         """ train the model """
         callbacks = []
         callbacks.append(TensorBoard(self.graph_path))
         callbacks.append(LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)))
-        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'weights.best.hdf5', save_best_only=True, save_weights_only=True))
-        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'weights.{epoch:02d}-{val_loss:.2f}.hdf5', save_weights_only=True))
+        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.best.hdf5', save_best_only=True))
+        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
         callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
         self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
         self.model.fit(self.corrupted['train'], self.source['train'],
