@@ -102,7 +102,7 @@ default is 128
 
 Specify checkpoint path and/or name
 
-    python process.py -i ~/data/images/ -s 128 128 3 --checkpoint-path ./checkpoints/ --checkpoint-name checkpoints.20-0.55.hdf5
+    python process.py -i ~/data/images/ -s 128 128 3 --checkpoint-path ./checkpoints/ --checkpoint-name checkpoint.20-0.55.hdf5
 
 Processing on CPU
 
