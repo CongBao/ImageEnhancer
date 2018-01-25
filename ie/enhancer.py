@@ -189,7 +189,7 @@ class AbstractModel(object):
     def conv(self, layer, filters, shrink=False):
         """ simplify the convolutional layer with kernal size as (3, 3), and padding as same;
             there is no pooling layer and is replaced by convolution layer with stride (2, 2);
-            each layer follows by a batch normalization layer and a relu activation layer
+            each layer follows by a batch normalization layer and an activation layer
             :param layer: the input layer
             :param filters: num of filters
             :param shrink: whether reduce the size of image or not, default False
@@ -203,7 +203,7 @@ class AbstractModel(object):
     def deconv(self, layer, filters, expand=False):
         """ simplify the de-convolutional layer with kernal size as (3, 3), and padding as same;
             there is no pooling layer and is replaced by convolution layer with stride (2, 2);
-            each layer follows by a batch normalization layer and a relu activation layer
+            each layer follows by a batch normalization layer and an activation layer
             :param layer: the input layer
             :param filters: number of filters
             :param expand: whether expand the size of image or not, default False

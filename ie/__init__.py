@@ -1,1 +1,1 @@
-"""dcae: Denoising Convolutional Auto Encoder"""
+"""ie: Image Enhancer"""
