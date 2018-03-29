@@ -107,7 +107,9 @@ class Enhancer(object):
             _model = AugmentModel(self.activ)
         else:
             _model = DenoiseModel(self.activ)
-        self.model = _model.construct(self.shape['in'])
+        self.g_model = _model.construct(self.shape['in'], type='G')
+        self.d_model = _model.construct(self.shape['out'], type='D')
+        self.d_on_g = _model.construct(self.shape['in'], type='G&D')
 
     def load_model(self):
         """ load model from file system """
@@ -224,6 +226,13 @@ class AbstractModel(object):
         far = BatchNormalization()(far)
         return layers.add([near, far])
 
+    def discriminate(self, layer):
+        layer = Flatten()(layer)
+        layer = self.activate(Dense(1024)(layer))
+        layer = Dense(1)(layer)
+        layer = Activation('sigmoid')(layer)
+        return layer
+
     def construct(self, shape, type='G'):
         """ construct the model """
         raise NotImplementedError('Model Undefined')
@@ -239,7 +248,10 @@ class DenoiseModel(AbstractModel):
         conv4 = self.conv(conv3, 64, True)        # (0.25r, 0.25c, 64)
         conv5 = self.conv(conv4, 128)             # (0.25r, 0.25c, 128)
         conv6 = self.conv(conv5, 128, True)       # (0.125r, 0.125c, 128)
-        if type == 'G': # Generator
+        if type == 'D': # Discriminator
+            out = self.discriminate(conv6)
+            return Model(image, out)
+        else:
             deconv6 = self.deconv(conv6, 128)         # (0.125r, 0.125c, 128)
             deconv5 = self.deconv(deconv6, 128, True) # (0.25r, 0.25c, 128)
             deconv4 = self.merge(deconv5, conv4, 128) # (0.25r, 0.25c, 128)
@@ -251,13 +263,11 @@ class DenoiseModel(AbstractModel):
             out = self.merge(deconv1, image, 32)      # (r, c, 32)
             out = self.deconv(out, shape[2])          # (r, c, 3)
             out = Activation('sigmoid')(out)
-            return Model(image, out)
-        else: # Discriminator
-            dense = Flatten()(conv6) # (0.125r * 0.125c * 128)
-            dense = self.activate(Dense(1024)(dense))
-            out = Dense(1)(dense)
-            out = Activation('sigmoid')(out)
-            return Model(image, out)
+            if type == 'G': # Generator
+                return Model(image, out)
+            else: # Discriminator on generator
+                score = self.discriminate(out)
+                return Model(image, [out, score])
 
 class AugmentModel(AbstractModel):
     """ The augment model """
@@ -270,7 +280,10 @@ class AugmentModel(AbstractModel):
         conv4 = self.conv(conv3, 64, True)        # (0.125r, 0.125c, 64)
         conv5 = self.conv(conv4, 128)             # (0.125r, 0.125c, 128)
         conv6 = self.conv(conv5, 128, True)       # (0.0625r, 0.0625c, 128)
-        if type == 'G': # Generator
+        if type == 'D': # Discriminator
+            out = self.discriminate(conv6)
+            return Model(image, out)
+        else:
             deconv6 = self.deconv(conv6, 128)         # (0.0625r, 0.0625c, 128)
             deconv5 = self.deconv(deconv6, 128, True) # (0.125r, 0.125c, 128)
             deconv4 = self.merge(deconv5, conv4, 128) # (0.125r, 0.125c, 128)
@@ -284,10 +297,8 @@ class AugmentModel(AbstractModel):
             deconv0 = self.deconv(deconv0, 16, True)  # (r, c, 16)
             out = self.deconv(deconv0, shape[2])      # (r, c, 3)
             out = Activation('sigmoid')(out)
-            return Model(image, out)
-        else: # Discriminator
-            dense = Flatten()(conv6)
-            dense = self.activate(Dense(1024)(dense))
-            out = Dense(1)(dense)
-            out = Activation('sigmoid')(out)
-            return Model(image, out)
+            if type == 'G': # Generator
+                return Model(image, out)
+            else: # Discriminator on generator
+                score = self.discriminate(out)
+                return Model(image, [out, score])
