@@ -6,9 +6,12 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy as np
+from keras import backend as K
 from keras import layers
-from keras.callbacks import LambdaCallback, LearningRateScheduler, ModelCheckpoint, TensorBoard
-from keras.layers import Activation, BatchNormalization, Conv2D, Conv2DTranspose, Input, Flatten, Dense
+from keras.callbacks import (LambdaCallback, LearningRateScheduler,
+                             ModelCheckpoint, TensorBoard)
+from keras.layers import (Activation, BatchNormalization, Conv2D,
+                          Conv2DTranspose, Dense, Flatten, Input)
 from keras.losses import binary_crossentropy
 from keras.models import Model, load_model
 from keras.optimizers import Adam
@@ -109,7 +112,7 @@ class Enhancer(object):
             _model = DenoiseModel(self.activ)
         self.g_model = _model.construct(self.shape['in'], type='G')
         self.d_model = _model.construct(self.shape['out'], type='D')
-        self.d_on_g = _model.construct(self.shape['in'], type='G&D')
+        self.d_on_g = AbsModel.build_d_on_g(self.g_model, self.d_model, self.shape['in'])
 
     def load_model(self): # TODO
         """ load model from file system """
@@ -126,8 +129,9 @@ class Enhancer(object):
         if not self.best_cp:
             callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
         callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
-        
-        self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
+        # TODO complete the loss and train steps
+        self.d_model.compile(Adam(lr=self.learning_rate), loss=AbsModel.wasserstein_loss)
+        self.d_on_g.compile(Adam(lr=self.learning_rate), loss=[binary_crossentropy, AbsModel.wasserstein_loss])
         self.model.fit(self.corrupted['train'], self.source['train'],
                        batch_size=self.batch_size,
                        epochs=self.epoch,
@@ -238,6 +242,13 @@ class AbsModel(object):
         layer = Activation('sigmoid')(layer)
         return layer
 
+    @staticmethod
+    def build_d_on_g(generator, discriminator, shape):
+        image = Input(shape=shape)
+        g_out = generator(image)
+        d_out = discriminator(g_out)
+        return Model(image, [g_out, d_out])
+
     def construct(self, shape, type='G'):
         """ construct the model """
         raise NotImplementedError('Model Undefined')
@@ -256,7 +267,7 @@ class DenoiseModel(AbsModel):
         if type == 'D': # Discriminator
             out = self.discriminate(conv6)
             return Model(image, out)
-        else:
+        else: # Generator
             deconv6 = self.deconv(conv6, 128)         # (0.125r, 0.125c, 128)
             deconv5 = self.deconv(deconv6, 128, True) # (0.25r, 0.25c, 128)
             deconv4 = self.merge(deconv5, conv4, 128) # (0.25r, 0.25c, 128)
@@ -268,11 +279,7 @@ class DenoiseModel(AbsModel):
             out = self.merge(deconv1, image, 32)      # (r, c, 32)
             out = self.deconv(out, shape[2])          # (r, c, 3)
             out = Activation('sigmoid')(out)
-            if type == 'G': # Generator
-                return Model(image, out)
-            else: # Discriminator on generator
-                score = self.discriminate(out)
-                return Model(image, [out, score])
+            return Model(image, out)
 
 class AugmentModel(AbsModel):
     """ The augment model """
@@ -288,7 +295,7 @@ class AugmentModel(AbsModel):
         if type == 'D': # Discriminator
             out = self.discriminate(conv6)
             return Model(image, out)
-        else:
+        else: # Generator
             deconv6 = self.deconv(conv6, 128)         # (0.0625r, 0.0625c, 128)
             deconv5 = self.deconv(deconv6, 128, True) # (0.125r, 0.125c, 128)
             deconv4 = self.merge(deconv5, conv4, 128) # (0.125r, 0.125c, 128)
@@ -302,8 +309,4 @@ class AugmentModel(AbsModel):
             deconv0 = self.deconv(deconv0, 16, True)  # (r, c, 16)
             out = self.deconv(deconv0, shape[2])      # (r, c, 3)
             out = Activation('sigmoid')(out)
-            if type == 'G': # Generator
-                return Model(image, out)
-            else: # Discriminator on generator
-                score = self.discriminate(out)
-                return Model(image, [out, score])
+            return Model(image, out)
