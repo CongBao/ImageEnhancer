@@ -102,7 +102,7 @@ class Enhancer(object):
 
     def build_model(self):
         """ build a given model """
-        _model = AbstractModel(self.activ)
+        _model = AbsModel(self.activ)
         if self.corrupt_type == 'ZIP':
             _model = AugmentModel(self.activ)
         else:
@@ -111,7 +111,7 @@ class Enhancer(object):
         self.d_model = _model.construct(self.shape['out'], type='D')
         self.d_on_g = _model.construct(self.shape['in'], type='G&D')
 
-    def load_model(self):
+    def load_model(self): # TODO
         """ load model from file system """
         if self.checkpoint_name is None:
             self.checkpoint_name = 'checkpoint.best.hdf5'
@@ -126,6 +126,7 @@ class Enhancer(object):
         if not self.best_cp:
             callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
         callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
+        
         self.model.compile(Adam(lr=self.learning_rate), binary_crossentropy)
         self.model.fit(self.corrupted['train'], self.source['train'],
                        batch_size=self.batch_size,
@@ -133,20 +134,20 @@ class Enhancer(object):
                        callbacks=callbacks,
                        validation_data=(self.corrupted['valid'], self.source['valid']))
 
-    def evaluate_model(self):
+    def evaluate_model(self): # TODO
         """ evaluate the model on test data set """
         print('Evaluating model...')
         score = self.model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
         print('The test loss is: %s' % score)
 
-    def process(self):
+    def process(self): # TODO
         """ process images with trained model """
         print('Processing images...')
         processed = self.model.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
         save_img(self.res_dir, processed)
         print('Complete')
 
-    def save_image(self, name, num=10):
+    def save_image(self, name, num=10): # TODO
         """ save the image to file system
             :param name: name of image
             :param num: number of images to draw, default 10
@@ -169,11 +170,15 @@ class Enhancer(object):
         plt.savefig(self.example_path + name + '.png')
         plt.close('all')
 
-class AbstractModel(object):
+class AbsModel(object):
     """ The abstract class of all models """
 
     def __init__(self, activ):
         self.activ = activ
+
+    @staticmethod
+    def wasserstein_loss(y_true, y_pred):
+        return K.mean(y_true * y_pred)
 
     def activate(self, layer):
         """ activate layer with given activation function
@@ -237,7 +242,7 @@ class AbstractModel(object):
         """ construct the model """
         raise NotImplementedError('Model Undefined')
 
-class DenoiseModel(AbstractModel):
+class DenoiseModel(AbsModel):
     """ the denoise model """
 
     def construct(self, shape, type='G'):
@@ -269,7 +274,7 @@ class DenoiseModel(AbstractModel):
                 score = self.discriminate(out)
                 return Model(image, [out, score])
 
-class AugmentModel(AbstractModel):
+class AugmentModel(AbsModel):
     """ The augment model """
 
     def construct(self, shape, type='G'):
