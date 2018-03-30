@@ -118,7 +118,7 @@ class Enhancer(object):
             self.checkpoint_name = 'checkpoint.best.hdf5'
         self.model = load_model(self.checkpoint_path + self.checkpoint_name)
 
-    def train_model(self):
+    def train_model(self, critic_updates=5):
         """ train the model """
         callbacks = []
         callbacks.append(TensorBoard(self.graph_path))
@@ -137,25 +137,29 @@ class Enhancer(object):
         train_num = self.corrupted['train'].shape[0]
         valid_num = self.corrupted['valid'].shape[0]
         true_batch_label, false_batch_label = np.ones((self.batch_size, 1)), np.zeros((self.batch_size, 1))
-        d_losses, d_on_g_losses = [], []
         for itr in range(self.epoch):
+            print('[Epoch %s / %s]' % (itr, self.epoch))
+            d_losses, d_on_g_losses = [], []
             indexes = np.random.permutation(train_num)
             for idx in range(int(train_num / self.batch_size)):
                 batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
                 crp_batch = self.corrupted['train'][batch_idx]
                 raw_batch = self.source['train'][batch_idx]
                 generated = self.g_model.predict(crp_batch, self.batch_size)
-                for _ in range(5): # TODO
+                for _ in range(critic_updates):
                     d_loss_real = self.d_model.train_on_batch(raw_batch, true_batch_label)
                     d_loss_fake = self.d_model.train_on_batch(generated, false_batch_label)
                     d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
                     d_losses.append(d_loss)
+                print('D Batch %s loss: %s' % (idx + 1, np.mean(d_losses)))
                 self.d_model.trainable = False
                 d_on_g_loss = self.d_on_g.train_on_batch(crp_batch, [raw_batch, true_batch_label])
                 d_on_g_losses.append(d_on_g_loss)
+                print('Batch %s total loss: %s' % (idx + 1, np.mean(d_on_g_losses)))
                 self.d_model.trainable = True
-            print('[Epoch %s / %s] D loss: %s, Total loss: %s' % (itr, self.epoch, np.mean(d_losses), np.mean(d_on_g_losses)))
-            self.g_model.evaluate(self.corrupted['valid'], self.source['valid'], self.batch_size)
+            print('D loss: %s, Total loss: %s' % (np.mean(d_losses), np.mean(d_on_g_losses)))
+            self.save_image('test')
+            self.d_on_g.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size)
             self.d_model.evaluate(self.source['valid'], np.ones((valid_num, 1)), self.batch_size)
             self.d_model.evaluate(self.corrupted['valid'], np.zeros((valid_num, 1)), self.batch_size)
 
