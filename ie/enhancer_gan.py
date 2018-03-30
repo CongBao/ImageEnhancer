@@ -15,6 +15,7 @@ from keras.layers import (Activation, BatchNormalization, Conv2D,
 from keras.losses import binary_crossentropy
 from keras.models import Model, load_model
 from keras.optimizers import Adam
+from keras.utils.generic_utils import Progbar
 from skimage.color import gray2rgb, rgb2gray
 from skimage.draw import circle
 from skimage.filters import gaussian
@@ -112,22 +113,15 @@ class Enhancer(object):
         self.d_model = _model.construct(self.shape['out'], type='D')
         self.d_on_g = AbsModel.build_d_on_g(self.g_model, self.d_model, self.shape['in'])
 
-    def load_model(self): # TODO
+    def load_model(self):
         """ load model from file system """
         if self.checkpoint_name is None:
-            self.checkpoint_name = 'checkpoint.best.hdf5'
-        self.model = load_model(self.checkpoint_path + self.checkpoint_name)
+            self.checkpoint_name = 'checkpoint.G.hdf5'
+        self.g_model = load_model(self.checkpoint_path + self.checkpoint_name)
 
-    def train_model(self, critic_updates=5):
+    def train_model(self, critic_updates=1): # 5
         """ train the model """
-        callbacks = []
-        callbacks.append(TensorBoard(self.graph_path))
-        callbacks.append(LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)))
-        callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.best.hdf5', save_best_only=True))
-        if not self.best_cp:
-            callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
-        callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
-        # TODO complete the loss and train steps
+        self.g_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
         self.d_model.compile(Adam(lr=self.learning_rate), loss=AbsModel.wasserstein_loss)
         self.d_model.trainable = False
@@ -138,10 +132,13 @@ class Enhancer(object):
         valid_num = self.corrupted['valid'].shape[0]
         true_batch_label, false_batch_label = np.ones((self.batch_size, 1)), np.zeros((self.batch_size, 1))
         for itr in range(self.epoch):
-            print('[Epoch %s / %s]' % (itr, self.epoch))
-            d_losses, d_on_g_losses = [], []
+            print('[Epoch %s / %s]' % (itr + 1, self.epoch))
+            d_losses = []
+            d_on_g_losses = []
             indexes = np.random.permutation(train_num)
-            for idx in range(int(train_num / self.batch_size)):
+            batch_num = int(train_num / self.batch_size)
+            progbar = Progbar(batch_num + 1)
+            for idx in range(batch_num):
                 batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
                 crp_batch = self.corrupted['train'][batch_idx]
                 raw_batch = self.source['train'][batch_idx]
@@ -151,32 +148,32 @@ class Enhancer(object):
                     d_loss_fake = self.d_model.train_on_batch(generated, false_batch_label)
                     d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
                     d_losses.append(d_loss)
-                print('D Batch %s loss: %s' % (idx + 1, np.mean(d_losses)))
                 self.d_model.trainable = False
                 d_on_g_loss = self.d_on_g.train_on_batch(crp_batch, [raw_batch, true_batch_label])
                 d_on_g_losses.append(d_on_g_loss)
-                print('Batch %s total loss: %s' % (idx + 1, np.mean(d_on_g_losses)))
                 self.d_model.trainable = True
-            print('D loss: %s, Total loss: %s' % (np.mean(d_losses), np.mean(d_on_g_losses)))
-            self.save_image('test')
-            self.d_on_g.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size)
-            self.d_model.evaluate(self.source['valid'], np.ones((valid_num, 1)), self.batch_size)
-            self.d_model.evaluate(self.corrupted['valid'], np.zeros((valid_num, 1)), self.batch_size)
+                progbar.update(idx + 1, [('loss', np.mean(d_on_g_losses)), ('D_loss', np.mean(d_losses))])
+            val_loss = self.d_on_g.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
+            progbar.update(batch_num + 1, [('loss', np.mean(d_on_g_losses)), ('val_loss', np.mean(val_loss))])
+            self.g_model.save(self.checkpoint_path + 'checkpoint.G.hdf5')
+            self.d_model.save(self.checkpoint_path + 'checkpoint.D.hdf5')
+            self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
+            del progbar
 
-    def evaluate_model(self): # TODO
+    def evaluate_model(self):
         """ evaluate the model on test data set """
         print('Evaluating model...')
         score = self.g_model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
         print('The test loss is: %s' % score)
 
-    def process(self): # TODO
+    def process(self):
         """ process images with trained model """
         print('Processing images...')
         processed = self.g_model.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
         save_img(self.res_dir, processed)
         print('Complete')
 
-    def save_image(self, name, num=10): # TODO
+    def save_image(self, name, num=10):
         """ save the image to file system
             :param name: name of image
             :param num: number of images to draw, default 10
