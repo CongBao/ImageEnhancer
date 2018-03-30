@@ -123,9 +123,9 @@ class Enhancer(object):
         """ train the model """
         self.g_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
-        self.d_model.compile(Adam(lr=self.learning_rate), loss=AbsModel.wasserstein_loss)
+        self.d_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = False
-        self.d_on_g.compile(Adam(lr=self.learning_rate), loss=[binary_crossentropy, AbsModel.wasserstein_loss])
+        self.d_on_g.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
         
         train_num = self.corrupted['train'].shape[0]
@@ -136,9 +136,8 @@ class Enhancer(object):
             d_losses = []
             d_on_g_losses = []
             indexes = np.random.permutation(train_num)
-            batch_num = int(train_num / self.batch_size)
-            progbar = Progbar(batch_num + 1)
-            for idx in range(batch_num):
+            progbar = Progbar(train_num)
+            for idx in range(int(train_num / self.batch_size)):
                 batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
                 crp_batch = self.corrupted['train'][batch_idx]
                 raw_batch = self.source['train'][batch_idx]
@@ -152,13 +151,12 @@ class Enhancer(object):
                 d_on_g_loss = self.d_on_g.train_on_batch(crp_batch, [raw_batch, true_batch_label])
                 d_on_g_losses.append(d_on_g_loss)
                 self.d_model.trainable = True
-                progbar.update(idx + 1, [('loss', np.mean(d_on_g_losses)), ('D_loss', np.mean(d_losses))])
+                progbar.add(self.batch_size, [('loss', np.mean(d_on_g_losses)), ('D_loss', np.mean(d_losses))])
             val_loss = self.d_on_g.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
-            progbar.update(batch_num + 1, [('loss', np.mean(d_on_g_losses)), ('val_loss', np.mean(val_loss))])
+            progbar.update(train_num, [('loss', np.mean(d_on_g_losses)), ('val_loss', np.mean(val_loss))])
             self.g_model.save(self.checkpoint_path + 'checkpoint.G.hdf5')
             self.d_model.save(self.checkpoint_path + 'checkpoint.D.hdf5')
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
-            del progbar
 
     def evaluate_model(self):
         """ evaluate the model on test data set """
