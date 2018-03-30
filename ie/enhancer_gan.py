@@ -49,8 +49,6 @@ class Enhancer(object):
         self.source = {}
         self.corrupted = {}
 
-        self.model = None
-
     def _corrupt(self, source):
         """ corrupt the input with specific corruption method
             :param source: original data set
@@ -130,24 +128,47 @@ class Enhancer(object):
             callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
         callbacks.append(LambdaCallback(on_epoch_end=lambda epoch, logs: self.save_image('test.{e:02d}-{val_loss:.2f}'.format(e=epoch, **logs))))
         # TODO complete the loss and train steps
+        self.d_model.trainable = True
         self.d_model.compile(Adam(lr=self.learning_rate), loss=AbsModel.wasserstein_loss)
+        self.d_model.trainable = False
         self.d_on_g.compile(Adam(lr=self.learning_rate), loss=[binary_crossentropy, AbsModel.wasserstein_loss])
-        self.model.fit(self.corrupted['train'], self.source['train'],
-                       batch_size=self.batch_size,
-                       epochs=self.epoch,
-                       callbacks=callbacks,
-                       validation_data=(self.corrupted['valid'], self.source['valid']))
+        self.d_model.trainable = True
+        
+        train_num = self.corrupted['train'].shape[0]
+        valid_num = self.corrupted['valid'].shape[0]
+        true_batch_label, false_batch_label = np.ones((self.batch_size, 1)), np.zeros((self.batch_size, 1))
+        d_losses, d_on_g_losses = [], []
+        for itr in range(self.epoch):
+            indexes = np.random.permutation(train_num)
+            for idx in range(int(train_num / self.batch_size)):
+                batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
+                crp_batch = self.corrupted['train'][batch_idx]
+                raw_batch = self.source['train'][batch_idx]
+                generated = self.g_model.predict(crp_batch, self.batch_size)
+                for _ in range(5): # TODO
+                    d_loss_real = self.d_model.train_on_batch(raw_batch, true_batch_label)
+                    d_loss_fake = self.d_model.train_on_batch(generated, false_batch_label)
+                    d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+                    d_losses.append(d_loss)
+                self.d_model.trainable = False
+                d_on_g_loss = self.d_on_g.train_on_batch(crp_batch, [raw_batch, true_batch_label])
+                d_on_g_losses.append(d_on_g_loss)
+                self.d_model.trainable = True
+            print('[Epoch %s / %s] D loss: %s, Total loss: %s' % (itr, self.epoch, np.mean(d_losses), np.mean(d_on_g_losses)))
+            self.g_model.evaluate(self.corrupted['valid'], self.source['valid'], self.batch_size)
+            self.d_model.evaluate(self.source['valid'], np.ones((valid_num, 1)), self.batch_size)
+            self.d_model.evaluate(self.corrupted['valid'], np.zeros((valid_num, 1)), self.batch_size)
 
     def evaluate_model(self): # TODO
         """ evaluate the model on test data set """
         print('Evaluating model...')
-        score = self.model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
+        score = self.g_model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
         print('The test loss is: %s' % score)
 
     def process(self): # TODO
         """ process images with trained model """
         print('Processing images...')
-        processed = self.model.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
+        processed = self.g_model.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
         save_img(self.res_dir, processed)
         print('Complete')
 
@@ -156,7 +177,7 @@ class Enhancer(object):
             :param name: name of image
             :param num: number of images to draw, default 10
         """
-        processed = self.model.predict(self.corrupted['test'])
+        processed = self.g_model.predict(self.corrupted['test'])
         plt.figure(facecolor='white', figsize=(16, 9))
         plt.subplots_adjust(wspace=0.1, hspace=0.05, top=1.0, bottom=0.0, left=0.1, right=0.9)
         for i in range(num):
@@ -235,13 +256,6 @@ class AbsModel(object):
         far = BatchNormalization()(far)
         return layers.add([near, far])
 
-    def discriminate(self, layer):
-        layer = Flatten()(layer)
-        layer = self.activate(Dense(1024)(layer))
-        layer = Dense(1)(layer)
-        layer = Activation('sigmoid')(layer)
-        return layer
-
     @staticmethod
     def build_d_on_g(generator, discriminator, shape):
         image = Input(shape=shape)
@@ -265,7 +279,10 @@ class DenoiseModel(AbsModel):
         conv5 = self.conv(conv4, 128)             # (0.25r, 0.25c, 128)
         conv6 = self.conv(conv5, 128, True)       # (0.125r, 0.125c, 128)
         if type == 'D': # Discriminator
-            out = self.discriminate(conv6)
+            dense = Flatten()(conv6)
+            dense = self.activate(Dense(1024)(dense))
+            out = Dense(1)(dense)
+            out = Activation('sigmoid')(out)
             return Model(image, out)
         else: # Generator
             deconv6 = self.deconv(conv6, 128)         # (0.125r, 0.125c, 128)
@@ -293,7 +310,10 @@ class AugmentModel(AbsModel):
         conv5 = self.conv(conv4, 128)             # (0.125r, 0.125c, 128)
         conv6 = self.conv(conv5, 128, True)       # (0.0625r, 0.0625c, 128)
         if type == 'D': # Discriminator
-            out = self.discriminate(conv6)
+            dense = Flatten()(conv6)
+            dense = self.activate(Dense(1024)(dense))
+            out = Dense(1)(dense)
+            out = Activation('sigmoid')(out)
             return Model(image, out)
         else: # Generator
             deconv6 = self.deconv(conv6, 128)         # (0.0625r, 0.0625c, 128)
