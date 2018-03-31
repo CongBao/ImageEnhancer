@@ -126,7 +126,7 @@ class Enhancer(object):
         self.d_model.trainable = True
         self.d_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy, metrics=['accuracy'])
         self.d_model.trainable = False
-        self.gan.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
+        self.gan.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy, loss_weights=[10, 1])
         self.d_model.trainable = True
         
         train_num = self.corrupted['train'].shape[0]
@@ -224,7 +224,7 @@ class AbsModel(object):
         layer = MaxPooling2D()(layer)
         return layer
 
-    def conv(self, layer, filters, shrink=False, dropout=False):
+    def conv(self, layer, filters, shrink=False):
         """ simplify the convolutional layer with kernal size as (3, 3), and padding as same;
             there is no pooling layer and is replaced by convolution layer with stride (2, 2);
             each layer follows by a batch normalization layer and an activation layer
@@ -235,8 +235,6 @@ class AbsModel(object):
         """
         layer = BatchNormalization()(layer)
         layer = self.activate(layer)
-        if dropout:
-            layer = Dropout(0.2)(layer)
         layer = Conv2D(filters, (3, 3), padding='same', strides=((2, 2) if shrink else (1, 1)))(layer)
         return layer
 
