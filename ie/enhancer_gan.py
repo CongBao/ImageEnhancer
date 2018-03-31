@@ -11,7 +11,8 @@ from keras import layers
 from keras.callbacks import (LambdaCallback, LearningRateScheduler,
                              ModelCheckpoint, TensorBoard)
 from keras.layers import (Activation, BatchNormalization, Conv2D,
-                          Conv2DTranspose, Dense, Flatten, Input)
+                          Conv2DTranspose, Dense, Dropout, Flatten, Input,
+                          MaxPooling2D)
 from keras.losses import binary_crossentropy
 from keras.models import Model, load_model
 from keras.optimizers import Adam
@@ -131,31 +132,33 @@ class Enhancer(object):
         train_num = self.corrupted['train'].shape[0]
         valid_num = self.corrupted['valid'].shape[0]
         for itr in range(self.epoch):
-            print('[Epoch %s / %s]' % (itr + 1, self.epoch))
+            print('[Epoch %s/%s]' % (itr + 1, self.epoch))
             d_acces = []
             gan_losses = []
             indexes = np.random.permutation(train_num)
-            progbar = Progbar(train_num)
+            #progbar = Progbar(train_num)
             for idx in range(int(train_num / self.batch_size)):
+                print('[Batch %s/%s]' % (idx + 1, int(train_num / self.batch_size)))
                 batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
                 crp_batch = self.corrupted['train'][batch_idx]
                 raw_batch = self.source['train'][batch_idx]
                 generated = self.g_model.predict(crp_batch, self.batch_size)
                 for _ in range(critic_updates):
-                    d_loss_fake = self.d_model.train_on_batch(generated, np.zeros((self.batch_size, 1)))
                     d_loss_real = self.d_model.train_on_batch(raw_batch, np.ones((self.batch_size, 1)))
+                    d_loss_fake = self.d_model.train_on_batch(generated, np.zeros((self.batch_size, 1)))
                     d_acc = 0.5 * np.add(d_loss_real[1], d_loss_fake[1])
                     d_acces.append(d_acc)
-                    #print('D loss real: %s, loss fake: %s' % (d_loss_real, d_loss_fake))
-                #print('D acc: %s' % np.mean(d_losses))
+                    print('D loss real: %s, loss fake: %s' % (d_loss_real, d_loss_fake))
+                print('D acc: %s' % np.mean(d_acces))
                 self.d_model.trainable = False
                 gan_loss = self.gan.train_on_batch(crp_batch, [raw_batch, np.ones((self.batch_size, 1))])
-                #print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
+                print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
                 gan_losses.append(gan_loss)
                 self.d_model.trainable = True
-                progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
+                print('loss: %s' % np.mean(gan_losses))
+                #progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
             val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
-            progbar.update(train_num, [('loss', np.mean(gan_losses)), ('val_loss', np.mean(val_loss))])
+            #progbar.update(train_num, [('loss', np.mean(gan_losses)), ('val_loss', np.mean(val_loss))])
             self.g_model.save(self.checkpoint_path + 'checkpoint.G.hdf5')
             self.d_model.save(self.checkpoint_path + 'checkpoint.D.hdf5')
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
@@ -214,7 +217,14 @@ class AbsModel(object):
         else:
             return Activation(self.activ)(layer)
 
-    def conv(self, layer, filters, shrink=False):
+    def conv_pool(self, layer, filters):
+        layer = Conv2D(filters, (3, 3), padding='same')(layer)
+        layer = BatchNormalization()(layer)
+        layer = self.activate(layer)
+        layer = MaxPooling2D()(layer)
+        return layer
+
+    def conv(self, layer, filters, shrink=False, dropout=False):
         """ simplify the convolutional layer with kernal size as (3, 3), and padding as same;
             there is no pooling layer and is replaced by convolution layer with stride (2, 2);
             each layer follows by a batch normalization layer and an activation layer
@@ -225,6 +235,8 @@ class AbsModel(object):
         """
         layer = BatchNormalization()(layer)
         layer = self.activate(layer)
+        if dropout:
+            layer = Dropout(0.2)(layer)
         layer = Conv2D(filters, (3, 3), padding='same', strides=((2, 2) if shrink else (1, 1)))(layer)
         return layer
 
@@ -268,7 +280,7 @@ class DenoiseModel(AbsModel):
     """ the denoise model """
 
     def construct(self, shape, type='G'):
-        if type == 'G':
+        if type == 'G': # Generator
             image = Input(shape=shape)                # (r, c, 3)
             conv1 = self.conv(image, 32)              # (r, c, 32)
             conv2 = self.conv(conv1, 32, True)        # (0.5r, 0.5c, 32)
@@ -290,21 +302,20 @@ class DenoiseModel(AbsModel):
             return Model(image, out)
         else: # Discriminator
             image = Input(shape=shape)                # (r, c, 3)
-            conv1 = self.conv(image, 32, True)        # (0.5r, 0.5c, 32)
-            conv2 = self.conv(conv1, 64, True)        # (0.25r, 0.25c, 64)
-            conv3 = self.conv(conv2, 128, True)       # (0.125r, 0.125c, 128)
-            conv4 = self.conv(conv3, 256)             # (0.125r, 0.125c, 256)
+            conv1 = self.conv_pool(image, 32)         # (0.5r, 0.5c, 32)
+            conv2 = self.conv_pool(conv1, 64)         # (0.25r, 0.25c, 64)
+            conv3 = self.conv_pool(conv2, 128)        # (0.125r, 0.125c, 128)
+            conv4 = self.conv_pool(conv3, 256)        # (0.0625r, 0.0625c, 256)
             dense = Flatten()(conv4)
             out = Dense(1)(dense)
             out = Activation('sigmoid')(out)
             return Model(image, out)
             
-
 class AugmentModel(AbsModel):
     """ The augment model """
 
     def construct(self, shape, type='G'):
-        if type == 'G':
+        if type == 'G': # Generator
             image = Input(shape=shape)                # (0.5r, 0.5c, 3)
             conv1 = self.conv(image, 32)              # (0.5r, 0.5c, 32)
             conv2 = self.conv(conv1, 32, True)        # (0.25r, 0.25c, 32)
@@ -327,13 +338,12 @@ class AugmentModel(AbsModel):
             out = Activation('sigmoid')(out)
             return Model(image, out)
         else: # Discriminator
-            image = Input(shape=shape)                # (0.5r, 0.5c, 3)
-            conv1 = self.conv(image, 32, True)        # (0.25r, 0.25c, 32)
-            conv2 = self.conv(conv1, 64, True)        # (0.125r, 0.125c, 64)
-            conv3 = self.conv(conv2, 128, True)       # (0.0625r, 0.0625c, 128)
-            conv4 = self.conv(conv3, 256)             # (0.0625r, 0.0625c, 256)
-            dense = Flatten()(conv6)
+            image = Input(shape=shape)               # (0.5r, 0.5c, 3)
+            conv1 = self.conv_pool(image, 32)        # (0.25r, 0.25c, 32)
+            conv2 = self.conv_pool(conv1, 64)        # (0.125r, 0.125c, 64)
+            conv3 = self.conv_pool(conv2, 128)       # (0.0625r, 0.0625c, 128)
+            conv4 = self.conv_pool(conv3, 256)       # (0.03125r, 0.03125c, 256)
+            dense = Flatten()(conv4)
             out = Dense(1)(dense)
             out = Activation('sigmoid')(out)
             return Model(image, out)
-            
