@@ -111,7 +111,7 @@ class Enhancer(object):
             _model = DenoiseModel(self.activ)
         self.g_model = _model.construct(self.shape['in'], type='G')
         self.d_model = _model.construct(self.shape['out'], type='D')
-        self.d_on_g = AbsModel.build_d_on_g(self.g_model, self.d_model, self.shape['in'])
+        self.gan = AbsModel.build_gan(self.g_model, self.d_model, self.shape['in'])
 
     def load_model(self):
         """ load model from file system """
@@ -119,22 +119,21 @@ class Enhancer(object):
             self.checkpoint_name = 'checkpoint.G.hdf5'
         self.g_model = load_model(self.checkpoint_path + self.checkpoint_name)
 
-    def train_model(self, critic_updates=1): # 5
+    def train_model(self, critic_updates=5): # 5
         """ train the model """
         self.g_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
-        self.d_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
+        self.d_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy, metrics=['accuracy'])
         self.d_model.trainable = False
-        self.d_on_g.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
+        self.gan.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
         
         train_num = self.corrupted['train'].shape[0]
         valid_num = self.corrupted['valid'].shape[0]
-        true_batch_label, false_batch_label = np.ones((self.batch_size, 1)), np.zeros((self.batch_size, 1))
         for itr in range(self.epoch):
             print('[Epoch %s / %s]' % (itr + 1, self.epoch))
-            d_losses = []
-            d_on_g_losses = []
+            d_acces = []
+            gan_losses = []
             indexes = np.random.permutation(train_num)
             progbar = Progbar(train_num)
             for idx in range(int(train_num / self.batch_size)):
@@ -143,17 +142,20 @@ class Enhancer(object):
                 raw_batch = self.source['train'][batch_idx]
                 generated = self.g_model.predict(crp_batch, self.batch_size)
                 for _ in range(critic_updates):
-                    d_loss_real = self.d_model.train_on_batch(raw_batch, true_batch_label)
-                    d_loss_fake = self.d_model.train_on_batch(generated, false_batch_label)
-                    d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-                    d_losses.append(d_loss)
+                    d_loss_fake = self.d_model.train_on_batch(generated, np.zeros((self.batch_size, 1)))
+                    d_loss_real = self.d_model.train_on_batch(raw_batch, np.ones((self.batch_size, 1)))
+                    d_acc = 0.5 * np.add(d_loss_real[1], d_loss_fake[1])
+                    d_acces.append(d_acc)
+                    #print('D loss real: %s, loss fake: %s' % (d_loss_real, d_loss_fake))
+                #print('D acc: %s' % np.mean(d_losses))
                 self.d_model.trainable = False
-                d_on_g_loss = self.d_on_g.train_on_batch(crp_batch, [raw_batch, true_batch_label])
-                d_on_g_losses.append(d_on_g_loss)
+                gan_loss = self.gan.train_on_batch(crp_batch, [raw_batch, np.ones((self.batch_size, 1))])
+                #print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
+                gan_losses.append(gan_loss)
                 self.d_model.trainable = True
-                progbar.add(self.batch_size, [('loss', np.mean(d_on_g_losses)), ('D_loss', np.mean(d_losses))])
-            val_loss = self.d_on_g.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
-            progbar.update(train_num, [('loss', np.mean(d_on_g_losses)), ('val_loss', np.mean(val_loss))])
+                progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
+            val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
+            progbar.update(train_num, [('loss', np.mean(gan_losses)), ('val_loss', np.mean(val_loss))])
             self.g_model.save(self.checkpoint_path + 'checkpoint.G.hdf5')
             self.d_model.save(self.checkpoint_path + 'checkpoint.D.hdf5')
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
@@ -200,17 +202,13 @@ class AbsModel(object):
     def __init__(self, activ):
         self.activ = activ
 
-    @staticmethod
-    def wasserstein_loss(y_true, y_pred):
-        return K.mean(y_true * y_pred)
-
     def activate(self, layer):
         """ activate layer with given activation function
             :param layer: the input layer
             :return: the layer after activation
         """
         if self.activ == 'lrelu':
-            return layers.LeakyReLU()(layer)
+            return layers.LeakyReLU(0.2)(layer)
         elif self.activ == 'prelu':
             return layers.PReLU()(layer)
         else:
@@ -256,7 +254,7 @@ class AbsModel(object):
         return layers.add([near, far])
 
     @staticmethod
-    def build_d_on_g(generator, discriminator, shape):
+    def build_gan(generator, discriminator, shape):
         image = Input(shape=shape)
         g_out = generator(image)
         d_out = discriminator(g_out)
@@ -270,20 +268,14 @@ class DenoiseModel(AbsModel):
     """ the denoise model """
 
     def construct(self, shape, type='G'):
-        image = Input(shape=shape)                # (r, c, 3)
-        conv1 = self.conv(image, 32)              # (r, c, 32)
-        conv2 = self.conv(conv1, 32, True)        # (0.5r, 0.5c, 32)
-        conv3 = self.conv(conv2, 64)              # (0.5r, 0.5c, 64)
-        conv4 = self.conv(conv3, 64, True)        # (0.25r, 0.25c, 64)
-        conv5 = self.conv(conv4, 128)             # (0.25r, 0.25c, 128)
-        conv6 = self.conv(conv5, 128, True)       # (0.125r, 0.125c, 128)
-        if type == 'D': # Discriminator
-            dense = Flatten()(conv6)
-            dense = self.activate(Dense(1024)(dense))
-            out = Dense(1)(dense)
-            out = Activation('sigmoid')(out)
-            return Model(image, out)
-        else: # Generator
+        if type == 'G':
+            image = Input(shape=shape)                # (r, c, 3)
+            conv1 = self.conv(image, 32)              # (r, c, 32)
+            conv2 = self.conv(conv1, 32, True)        # (0.5r, 0.5c, 32)
+            conv3 = self.conv(conv2, 64)              # (0.5r, 0.5c, 64)
+            conv4 = self.conv(conv3, 64, True)        # (0.25r, 0.25c, 64)
+            conv5 = self.conv(conv4, 128)             # (0.25r, 0.25c, 128)
+            conv6 = self.conv(conv5, 128, True)       # (0.125r, 0.125c, 128)
             deconv6 = self.deconv(conv6, 128)         # (0.125r, 0.125c, 128)
             deconv5 = self.deconv(deconv6, 128, True) # (0.25r, 0.25c, 128)
             deconv4 = self.merge(deconv5, conv4, 128) # (0.25r, 0.25c, 128)
@@ -296,25 +288,30 @@ class DenoiseModel(AbsModel):
             out = self.deconv(out, shape[2])          # (r, c, 3)
             out = Activation('sigmoid')(out)
             return Model(image, out)
+        else: # Discriminator
+            image = Input(shape=shape)                # (r, c, 3)
+            conv1 = self.conv(image, 32, True)        # (0.5r, 0.5c, 32)
+            conv2 = self.conv(conv1, 64, True)        # (0.25r, 0.25c, 64)
+            conv3 = self.conv(conv2, 128, True)       # (0.125r, 0.125c, 128)
+            conv4 = self.conv(conv3, 256)             # (0.125r, 0.125c, 256)
+            dense = Flatten()(conv4)
+            out = Dense(1)(dense)
+            out = Activation('sigmoid')(out)
+            return Model(image, out)
+            
 
 class AugmentModel(AbsModel):
     """ The augment model """
 
     def construct(self, shape, type='G'):
-        image = Input(shape=shape)                # (0.5r, 0.5c, 3)
-        conv1 = self.conv(image, 32)              # (0.5r, 0.5c, 32)
-        conv2 = self.conv(conv1, 32, True)        # (0.25r, 0.25c, 32)
-        conv3 = self.conv(conv2, 64)              # (0.25r, 0.25c, 64)
-        conv4 = self.conv(conv3, 64, True)        # (0.125r, 0.125c, 64)
-        conv5 = self.conv(conv4, 128)             # (0.125r, 0.125c, 128)
-        conv6 = self.conv(conv5, 128, True)       # (0.0625r, 0.0625c, 128)
-        if type == 'D': # Discriminator
-            dense = Flatten()(conv6)
-            dense = self.activate(Dense(1024)(dense))
-            out = Dense(1)(dense)
-            out = Activation('sigmoid')(out)
-            return Model(image, out)
-        else: # Generator
+        if type == 'G':
+            image = Input(shape=shape)                # (0.5r, 0.5c, 3)
+            conv1 = self.conv(image, 32)              # (0.5r, 0.5c, 32)
+            conv2 = self.conv(conv1, 32, True)        # (0.25r, 0.25c, 32)
+            conv3 = self.conv(conv2, 64)              # (0.25r, 0.25c, 64)
+            conv4 = self.conv(conv3, 64, True)        # (0.125r, 0.125c, 64)
+            conv5 = self.conv(conv4, 128)             # (0.125r, 0.125c, 128)
+            conv6 = self.conv(conv5, 128, True)       # (0.0625r, 0.0625c, 128)
             deconv6 = self.deconv(conv6, 128)         # (0.0625r, 0.0625c, 128)
             deconv5 = self.deconv(deconv6, 128, True) # (0.125r, 0.125c, 128)
             deconv4 = self.merge(deconv5, conv4, 128) # (0.125r, 0.125c, 128)
@@ -329,3 +326,14 @@ class AugmentModel(AbsModel):
             out = self.deconv(deconv0, shape[2])      # (r, c, 3)
             out = Activation('sigmoid')(out)
             return Model(image, out)
+        else: # Discriminator
+            image = Input(shape=shape)                # (0.5r, 0.5c, 3)
+            conv1 = self.conv(image, 32, True)        # (0.25r, 0.25c, 32)
+            conv2 = self.conv(conv1, 64, True)        # (0.125r, 0.125c, 64)
+            conv3 = self.conv(conv2, 128, True)       # (0.0625r, 0.0625c, 128)
+            conv4 = self.conv(conv3, 256)             # (0.0625r, 0.0625c, 256)
+            dense = Flatten()(conv6)
+            out = Dense(1)(dense)
+            out = Activation('sigmoid')(out)
+            return Model(image, out)
+            
