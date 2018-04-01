@@ -6,10 +6,7 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy as np
-from keras import backend as K
 from keras import layers
-from keras.callbacks import (LambdaCallback, LearningRateScheduler,
-                             ModelCheckpoint, TensorBoard)
 from keras.layers import (Activation, BatchNormalization, Conv2D,
                           Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D)
 from keras.losses import binary_crossentropy
@@ -135,9 +132,9 @@ class Enhancer(object):
             d_acces = []
             gan_losses = []
             indexes = np.random.permutation(train_num)
-            #progbar = Progbar(train_num)
+            progbar = Progbar(train_num)
             for idx in range(int(train_num / self.batch_size)):
-                print('[Batch %s/%s]' % (idx + 1, int(train_num / self.batch_size)))
+                #print('[Batch %s/%s]' % (idx + 1, int(train_num / self.batch_size)))
                 batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
                 crp_batch = self.corrupted['train'][batch_idx]
                 raw_batch = self.source['train'][batch_idx]
@@ -147,17 +144,17 @@ class Enhancer(object):
                     d_loss_fake = self.d_model.train_on_batch(generated, np.zeros((self.batch_size, 1)))
                     d_acc = 0.5 * np.add(d_loss_real[1], d_loss_fake[1])
                     d_acces.append(d_acc)
-                    print('D loss real: %s, loss fake: %s' % (d_loss_real, d_loss_fake))
-                print('D acc: %s' % np.mean(d_acces))
+                    #print('D loss real: %s, loss fake: %s' % (d_loss_real, d_loss_fake))
+                #print('D acc: %s' % np.mean(d_acces))
                 self.d_model.trainable = False
                 gan_loss = self.gan.train_on_batch(crp_batch, [raw_batch, np.ones((self.batch_size, 1))])
-                print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
+                #print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
                 gan_losses.append(gan_loss)
                 self.d_model.trainable = True
-                print('loss: %s' % np.mean(gan_losses))
-                #progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
+                #print('loss: %s' % np.mean(gan_losses))
+                progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
             val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
-            #progbar.update(train_num, [('loss', np.mean(gan_losses)), ('val_loss', np.mean(val_loss))])
+            progbar.update(train_num, [('val_loss', np.mean(val_loss))])
             self.g_model.save(self.checkpoint_path + 'checkpoint.G.hdf5')
             self.d_model.save(self.checkpoint_path + 'checkpoint.D.hdf5')
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
