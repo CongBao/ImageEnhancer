@@ -11,8 +11,7 @@ from keras import layers
 from keras.callbacks import (LambdaCallback, LearningRateScheduler,
                              ModelCheckpoint, TensorBoard)
 from keras.layers import (Activation, BatchNormalization, Conv2D,
-                          Conv2DTranspose, Dense, Dropout, Flatten, Input,
-                          MaxPooling2D)
+                          Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D)
 from keras.losses import binary_crossentropy
 from keras.models import Model, load_model
 from keras.optimizers import Adam
@@ -120,7 +119,7 @@ class Enhancer(object):
             self.checkpoint_name = 'checkpoint.G.hdf5'
         self.g_model = load_model(self.checkpoint_path + self.checkpoint_name)
 
-    def train_model(self, critic_updates=5): # 5
+    def train_model(self, critic_updates=5):
         """ train the model """
         self.g_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
@@ -218,6 +217,12 @@ class AbsModel(object):
             return Activation(self.activ)(layer)
 
     def conv_pool(self, layer, filters):
+        """ simplify the convolutional layer with kernal size set as (3, 3), and padding set as same;
+            each convolutional layer follows by a batch normalization layer, an activation layer, and a max pooling layer
+            :param layer: the input layer
+            :param filters: num of filters
+            :return: a new layer after convoluation and pooling
+        """
         layer = Conv2D(filters, (3, 3), padding='same')(layer)
         layer = BatchNormalization()(layer)
         layer = self.activate(layer)
@@ -225,9 +230,9 @@ class AbsModel(object):
         return layer
 
     def conv(self, layer, filters, shrink=False):
-        """ simplify the convolutional layer with kernal size as (3, 3), and padding as same;
+        """ simplify the convolutional layer with kernal size set as (3, 3), and padding set as same;
             there is no pooling layer and is replaced by convolution layer with stride (2, 2);
-            each layer follows by a batch normalization layer and an activation layer
+            each layer follows after a batch normalization layer and an activation layer
             :param layer: the input layer
             :param filters: num of filters
             :param shrink: whether reduce the size of image or not, default False
@@ -239,9 +244,9 @@ class AbsModel(object):
         return layer
 
     def deconv(self, layer, filters, expand=False):
-        """ simplify the de-convolutional layer with kernal size as (3, 3), and padding as same;
+        """ simplify the de-convolutional layer with kernal size set as (3, 3), and padding set as same;
             there is no pooling layer and is replaced by convolution layer with stride (2, 2);
-            each layer follows by a batch normalization layer and an activation layer
+            each layer follows after a batch normalization layer and an activation layer
             :param layer: the input layer
             :param filters: number of filters
             :param expand: whether expand the size of image or not, default False
@@ -265,13 +270,25 @@ class AbsModel(object):
 
     @staticmethod
     def build_gan(generator, discriminator, shape):
+        """ build a gan that put discriminator on top of generator;
+            variables in two models will not be redefined;
+            there will be two outputs of the combined model
+            :param generator: the model of generator
+            :param discriminator: the model of discriminator
+            :param shape: the input shape of generator
+            :return: the combined model
+        """
         image = Input(shape=shape)
         g_out = generator(image)
         d_out = discriminator(g_out)
         return Model(image, [g_out, d_out])
 
     def construct(self, shape, type='G'):
-        """ construct the model """
+        """ construct the model
+            :param shape: input shape
+            :param type: either 'G' or 'D'
+            :return: the constructed model
+        """
         raise NotImplementedError('Model Undefined')
 
 class DenoiseModel(AbsModel):
