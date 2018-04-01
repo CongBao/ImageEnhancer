@@ -83,10 +83,14 @@ def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     matplotlib.use('Agg')
     from enhancer import Enhancer
+    #from enhancer_gan import Enhancer # under testing
     enhancer = Enhancer(**params)
     enhancer.load_data()
     enhancer.build_model()
-    enhancer.train_model()
+    try:
+        enhancer.train_model()
+    except (KeyboardInterrupt, SystemExit):
+        print('Abort!')
     enhancer.evaluate_model()
 
 if __name__ == '__main__':
