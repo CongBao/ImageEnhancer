@@ -21,7 +21,7 @@ ACTIVATIONS = ['linear', 'sigmoid', 'tanh', 'relu', 'lrelu', 'prelu', 'elu', 'se
 LEARNING_RATE = 0.001
 BATCH_SIZE = 128
 EPOCH = 50
-ACTIV_FUNC = 'relu'
+ACTIV_FUNC = 'lrelu'
 CORRUPT_TYPE = 'GSN'
 CORRUPT_RATIO = 0.02
 
