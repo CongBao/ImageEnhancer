@@ -9,7 +9,7 @@ import numpy as np
 from keras import layers
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard
 from keras.layers import (Activation, BatchNormalization, Conv2D,
-                          Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D)
+                          Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D, Dropout)
 from keras.losses import binary_crossentropy
 from keras.models import Model, load_model
 from keras.optimizers import Adam
@@ -138,13 +138,13 @@ class Enhancer(object):
         valid_num = self.corrupted['valid'].shape[0]
         for itr in range(self.epoch):
             print('[Epoch %s/%s]' % (itr + 1, self.epoch))
-            callback.on_epoch_begin(itr + 1)
+            callback.on_epoch_begin(itr)
             d_acces = []
             gan_losses = []
             indexes = np.random.permutation(train_num)
-            progbar = Progbar(train_num)
+            #progbar = Progbar(train_num)
             for idx in range(int(train_num / self.batch_size)):
-                #print('[Batch %s/%s]' % (idx + 1, int(train_num / self.batch_size)))
+                print('[Batch %s/%s]' % (idx + 1, int(train_num / self.batch_size)))
                 batch_idx = indexes[idx * self.batch_size : (idx + 1) * self.batch_size]
                 crp_batch = self.corrupted['train'][batch_idx]
                 raw_batch = self.source['train'][batch_idx]
@@ -154,18 +154,18 @@ class Enhancer(object):
                     d_loss_fake = self.d_model.train_on_batch(generated, np.zeros((self.batch_size, 1)))
                     d_acc = 0.5 * np.add(d_loss_real[1], d_loss_fake[1])
                     d_acces.append(d_acc)
-                    #print('D loss real: %s, loss fake: %s' % (d_loss_real, d_loss_fake))
-                #print('D acc: %s' % np.mean(d_acces))
+                    print('D real loss/acc: %s, fake loss/acc: %s' % (d_loss_real, d_loss_fake))
+                print('D acc: %s' % np.mean(d_acces))
                 self.d_model.trainable = False
                 gan_loss = self.gan.train_on_batch(crp_batch, [raw_batch, np.ones((self.batch_size, 1))])
-                #print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
+                print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
                 gan_losses.append(gan_loss)
                 self.d_model.trainable = True
-                #print('loss: %s' % np.mean(gan_losses))
-                progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
+                print('loss: %s' % np.mean(gan_losses))
+                #progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
             val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
-            progbar.update(train_num, [('val_loss', np.mean(val_loss))])
-            callback.on_epoch_end(itr + 1, logs={'loss': np.mean(gan_losses), 'val_loss': np.mean(val_loss)})
+            #progbar.update(train_num, [('val_loss', np.mean(val_loss))])
+            callback.on_epoch_end(itr, logs={'loss': np.mean(gan_losses), 'val_loss': np.mean(val_loss)})
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
         callback.on_train_end()
 
@@ -256,6 +256,7 @@ class AbsModel(object):
         layer = Conv2D(filters, (3, 3), padding='same')(layer)
         layer = BatchNormalization()(layer)
         layer = self.activate(layer)
+        layer = Dropout(0.2)(layer)
         layer = MaxPooling2D()(layer)
         return layer
 

@@ -89,9 +89,9 @@ def main():
     enhancer.build_model()
     try:
         enhancer.train_model()
+        enhancer.evaluate_model()
     except (KeyboardInterrupt, SystemExit):
         print('Abort!')
-    enhancer.evaluate_model()
 
 if __name__ == '__main__':
     main()
