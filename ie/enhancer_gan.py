@@ -7,6 +7,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 from keras import layers
+from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard
 from keras.layers import (Activation, BatchNormalization, Conv2D,
                           Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D)
 from keras.losses import binary_crossentropy
@@ -113,22 +114,31 @@ class Enhancer(object):
     def load_model(self):
         """ load model from file system """
         if self.checkpoint_name is None:
-            self.checkpoint_name = 'checkpoint.G.hdf5'
-        self.g_model = load_model(self.checkpoint_path + self.checkpoint_name)
+            self.checkpoint_name = 'checkpoint.best.hdf5'
+        self.gan = load_model(self.checkpoint_path + self.checkpoint_name)
 
     def train_model(self, critic_updates=5):
         """ train the model """
-        self.g_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy)
         self.d_model.trainable = True
         self.d_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy, metrics=['accuracy'])
         self.d_model.trainable = False
         self.gan.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy, loss_weights=[10, 1])
         self.d_model.trainable = True
+
+        cb_list = []
+        cb_list.append(TensorBoard(self.graph_path))
+        cb_list.append(LearningRateScheduler(lambda e: self.learning_rate * 0.99 ** (e / 10)))
+        cb_list.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.best.hdf5', save_best_only=True))
+        if not self.best_cp:
+            cb_list.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))
+        callback = CallBacks(cb_list)
+        callback.set_model(self.gan)
         
         train_num = self.corrupted['train'].shape[0]
         valid_num = self.corrupted['valid'].shape[0]
         for itr in range(self.epoch):
             print('[Epoch %s/%s]' % (itr + 1, self.epoch))
+            callback.on_epoch_begin(itr + 1)
             d_acces = []
             gan_losses = []
             indexes = np.random.permutation(train_num)
@@ -155,22 +165,24 @@ class Enhancer(object):
                 progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
             val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
             progbar.update(train_num, [('val_loss', np.mean(val_loss))])
-            self.g_model.save(self.checkpoint_path + 'checkpoint.G.hdf5')
-            self.d_model.save(self.checkpoint_path + 'checkpoint.D.hdf5')
+            callback.on_epoch_end(itr + 1, logs={'loss': np.mean(gan_losses), 'val_loss': np.mean(val_loss)})
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
+        callback.on_train_end()
 
     def evaluate_model(self):
         """ evaluate the model on test data set """
         print('Evaluating model...')
-        score = self.g_model.evaluate(self.corrupted['test'], self.source['test'], batch_size=self.batch_size)
-        print('The test loss is: %s' % score)
+        test_num = self.corrupted['test'].shape[0]
+        losses = self.gan.evaluate(self.corrupted['test'], [self.source['test'], np.ones((test_num, 1))], batch_size=self.batch_size)
+        print('The test loss is: %s' % np.mean(losses))
 
     def process(self):
         """ process images with trained model """
         print('Processing images...')
-        processed = self.g_model.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
+        processed, score = self.gan.predict(self.source['process'], batch_size=self.batch_size, verbose=1)
+        print('Discriminator score: %s, saving images...' % np.mean(score))
         save_img(self.res_dir, processed)
-        print('Complete')
+        print('Complete!')
 
     def save_image(self, name, num=10):
         """ save the image to file system
@@ -194,6 +206,27 @@ class Enhancer(object):
             plt.axis('off')
         plt.savefig(self.example_path + name + '.png')
         plt.close('all')
+
+class CallBacks(object):
+
+    def __init__(self, cb_list):
+        self.cb_list = cb_list
+
+    def set_model(self, model):
+        for cb in self.cb_list:
+            cb.set_model(model)
+    
+    def on_epoch_begin(self, epoch, logs=None):
+        for cb in self.cb_list:
+            cb.on_epoch_begin(epoch, logs)
+
+    def on_epoch_end(self, epoch, logs=None):
+        for cb in self.cb_list:
+            cb.on_epoch_end(epoch, logs)
+
+    def on_train_end(self, logs=None):
+        for cb in self.cb_list:
+            cb.on_train_end(logs)
 
 class AbsModel(object):
     """ The abstract class of all models """

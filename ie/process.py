@@ -51,10 +51,14 @@ def main():
         os.makedirs(params['res_dir'])
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     from enhancer import Enhancer
+    #from enhancer_gan import Enhancer # under testing
     enhancer = Enhancer(**params)
     enhancer.load_data(process=True)
     enhancer.load_model()
-    enhancer.process()
+    try:
+        enhancer.process()
+    except (KeyboardInterrupt, SystemExit):
+        print('Abort!')
 
 if __name__ == '__main__':
     main()
