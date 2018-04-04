@@ -165,6 +165,7 @@ class Enhancer(object):
                 #progbar.add(self.batch_size, [('loss', np.mean(gan_losses)), ('d_acc', 100 * np.mean(d_acces))])
             val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
             #progbar.update(train_num, [('val_loss', np.mean(val_loss))])
+            print('val_loss: %s' % np.mean(val_loss))
             callback.on_epoch_end(itr, logs={'loss': np.mean(gan_losses), 'val_loss': np.mean(val_loss)})
             self.save_image('test.{e:02d}-{v:.2f}'.format(e=(itr + 1), v=np.mean(val_loss)))
         callback.on_train_end()
