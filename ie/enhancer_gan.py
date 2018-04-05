@@ -289,16 +289,16 @@ class AbsModel(object):
         layer = Conv2DTranspose(filters, (3, 3), padding='same', strides=((2, 2) if expand else (1, 1)))(layer)
         return layer
 
-    def merge(self, near, far, channels):
+    def merge(self, a, b, channels):
         """ merge two layers, used in residual network's shortcut connection
-            :param near: the layer close to current layer
-            :param far: the corresponding layer to merge
+            :param a: the layer close to current layer
+            :param b: the corresponding layer to merge
             :param channels: number of channels of current layer
             :return: a new layer after merging
         """
-        far = Conv2D(channels, (1, 1), padding='same')(far)
-        far = BatchNormalization()(far)
-        return layers.add([near, far])
+        b = Conv2D(channels, (1, 1), padding='same')(b)
+        b = BatchNormalization()(b)
+        return layers.add([a, b])
 
     @staticmethod
     def build_gan(generator, discriminator, shape):
@@ -385,11 +385,11 @@ class AugmentModel(AbsModel):
             out = Activation('sigmoid')(out)
             return Model(image, out)
         else: # Discriminator
-            image = Input(shape=shape)               # (0.5r, 0.5c, 3)
-            conv1 = self.conv_pool(image, 32)        # (0.25r, 0.25c, 32)
-            conv2 = self.conv_pool(conv1, 64)        # (0.125r, 0.125c, 64)
-            conv3 = self.conv_pool(conv2, 128)       # (0.0625r, 0.0625c, 128)
-            conv4 = self.conv_pool(conv3, 256)       # (0.03125r, 0.03125c, 256)
+            image = Input(shape=shape)               # (r, c, 3)
+            conv1 = self.conv_pool(image, 32)        # (0.5r, 0.5c, 32)
+            conv2 = self.conv_pool(conv1, 64)        # (0.25r, 0.25c, 64)
+            conv3 = self.conv_pool(conv2, 128)       # (0.125r, 0.125c, 128)
+            conv4 = self.conv_pool(conv3, 256)       # (0.0625r, 0.0625c, 256)
             dense = Flatten()(conv4)
             out = Dense(1)(dense)
             out = Activation('sigmoid')(out)
