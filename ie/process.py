@@ -52,6 +52,7 @@ def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     from enhancer import Enhancer
     #from enhancer_gan import Enhancer # under testing
+    #from enhancer_wgan import Enhancer # under testing
     enhancer = Enhancer(**params)
     enhancer.load_data(process=True)
     enhancer.load_model()
