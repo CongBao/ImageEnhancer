@@ -171,7 +171,7 @@ class Enhancer(object):
                 self.d_model.trainable = True
                 print('loss: %s' % -np.mean(gan_losses))
                 #progbar.add(self.batch_size, [('loss', -np.mean(gan_losses)), ('d_loss', np.mean(d_losses))])
-            val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], np.ones((valid_num, 1))], self.batch_size, verbose=0)
+            val_loss = self.gan.evaluate(self.corrupted['valid'], [self.source['valid'], -np.ones((valid_num, 1))], self.batch_size, verbose=0)
             #progbar.update(train_num, [('val_loss', -np.mean(val_loss))])
             print('val_loss: %s' % -np.mean(val_loss))
             callback.on_epoch_end(itr, logs={'loss': -np.mean(gan_losses), 'val_loss': -np.mean(val_loss)})
@@ -182,7 +182,7 @@ class Enhancer(object):
         """ evaluate the model on test data set """
         print('Evaluating model...')
         test_num = self.corrupted['test'].shape[0]
-        losses = self.gan.evaluate(self.corrupted['test'], [self.source['test'], np.ones((test_num, 1))], batch_size=self.batch_size)
+        losses = self.gan.evaluate(self.corrupted['test'], [self.source['test'], -np.ones((test_num, 1))], batch_size=self.batch_size)
         print('The test loss is: %s' % -np.mean(losses))
 
     def process(self):
@@ -259,7 +259,7 @@ class AbsModel(object):
         else:
             return Activation(self.activ)(layer)
 
-    def conv_pool(self, layer, filters):
+    def conv_down(self, layer, filters):
         """ simplify the convolutional layer with kernal size set as (3, 3), and padding set as same;
             each convolutional layer follows by a batch normalization layer, an activation layer, and a max pooling layer
             :param layer: the input layer
@@ -359,10 +359,10 @@ class DenoiseModel(AbsModel):
             return Model(image, out)
         else: # Discriminator
             image = Input(shape=shape)                # (r, c, 3)
-            conv1 = self.conv_pool(image, 32)         # (0.5r, 0.5c, 32)
-            conv2 = self.conv_pool(conv1, 64)         # (0.25r, 0.25c, 64)
-            conv3 = self.conv_pool(conv2, 128)        # (0.125r, 0.125c, 128)
-            conv4 = Conv2D(1, (3, 3), padding='same', use_bias=False)(conv3)        # (0.0625r, 0.0625c, 256)
+            conv1 = self.conv_down(image, 32)         # (0.5r, 0.5c, 32)
+            conv2 = self.conv_down(conv1, 64)         # (0.25r, 0.25c, 64)
+            conv3 = self.conv_down(conv2, 128)        # (0.125r, 0.125c, 128)
+            conv4 = Conv2D(1, (3, 3), padding='same', use_bias=False)(conv3)
             out = layers.GlobalAveragePooling2D()(conv4)
             #dense = Flatten()(conv4)
             #out = Dense(1)(dense)
