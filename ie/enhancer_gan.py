@@ -9,8 +9,8 @@ import numpy as np
 from keras import layers
 from keras.callbacks import LearningRateScheduler, ModelCheckpoint, TensorBoard
 from keras.layers import (Activation, BatchNormalization, Conv2D,
-                          Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D, Dropout)
-from keras.losses import binary_crossentropy
+                          Conv2DTranspose, Dense, Flatten, Input, MaxPooling2D)
+from keras.losses import binary_crossentropy, kullback_leibler_divergence
 from keras.models import Model, load_model
 from keras.optimizers import Adam
 from keras.utils.generic_utils import Progbar
@@ -117,7 +117,7 @@ class Enhancer(object):
             self.checkpoint_name = 'checkpoint.best.hdf5'
         self.gan = load_model(self.checkpoint_path + self.checkpoint_name)
 
-    def train_model(self, critic_updates=5):
+    def train_model(self, critic_updates=1):
         """ train the model """
         self.d_model.trainable = True
         self.d_model.compile(Adam(lr=self.learning_rate), loss=binary_crossentropy, metrics=['accuracy'])
@@ -158,7 +158,7 @@ class Enhancer(object):
                 print('D acc: %s' % np.mean(d_acces))
                 self.d_model.trainable = False
                 gan_loss = self.gan.train_on_batch(crp_batch, [raw_batch, np.ones((self.batch_size, 1))])
-                print('GAN loss 1: %s, loss 2: %s' % (gan_loss[0], gan_loss[1]))
+                print('GAN loss: %s' % gan_loss)
                 gan_losses.append(gan_loss)
                 self.d_model.trainable = True
                 print('loss: %s' % np.mean(gan_losses))
@@ -247,18 +247,17 @@ class AbsModel(object):
         else:
             return Activation(self.activ)(layer)
 
-    def conv_pool(self, layer, filters):
+    def conv_down(self, layer, filters):
         """ simplify the convolutional layer with kernal size set as (3, 3), and padding set as same;
-            each convolutional layer follows by a batch normalization layer, an activation layer, and a max pooling layer
+            there is no pooling layer and is replaced by convolution layer with stride (2, 2);
+            each convolutional layer follows by a batch normalization layer, and an activation layer
             :param layer: the input layer
             :param filters: num of filters
             :return: a new layer after convoluation and pooling
         """
-        layer = Conv2D(filters, (3, 3), padding='same')(layer)
+        layer = Conv2D(filters, (5, 5), padding='same', strides=(2, 2))(layer)
         layer = BatchNormalization()(layer)
         layer = self.activate(layer)
-        layer = Dropout(0.2)(layer)
-        layer = MaxPooling2D()(layer)
         return layer
 
     def conv(self, layer, filters, shrink=False):
@@ -349,10 +348,10 @@ class DenoiseModel(AbsModel):
             return Model(image, out)
         else: # Discriminator
             image = Input(shape=shape)                # (r, c, 3)
-            conv1 = self.conv_pool(image, 32)         # (0.5r, 0.5c, 32)
-            conv2 = self.conv_pool(conv1, 64)         # (0.25r, 0.25c, 64)
-            conv3 = self.conv_pool(conv2, 128)        # (0.125r, 0.125c, 128)
-            conv4 = self.conv_pool(conv3, 256)        # (0.0625r, 0.0625c, 256)
+            conv1 = self.conv_down(image, 32)         # (0.5r, 0.5c, 32)
+            conv2 = self.conv_down(conv1, 64)         # (0.25r, 0.25c, 64)
+            conv3 = self.conv_down(conv2, 128)        # (0.125r, 0.125c, 128)
+            conv4 = self.conv_down(conv3, 256)        # (0.0625r, 0.0625c, 256)
             dense = Flatten()(conv4)
             out = Dense(1)(dense)
             out = Activation('sigmoid')(out)
@@ -386,10 +385,10 @@ class AugmentModel(AbsModel):
             return Model(image, out)
         else: # Discriminator
             image = Input(shape=shape)               # (r, c, 3)
-            conv1 = self.conv_pool(image, 32)        # (0.5r, 0.5c, 32)
-            conv2 = self.conv_pool(conv1, 64)        # (0.25r, 0.25c, 64)
-            conv3 = self.conv_pool(conv2, 128)       # (0.125r, 0.125c, 128)
-            conv4 = self.conv_pool(conv3, 256)       # (0.0625r, 0.0625c, 256)
+            conv1 = self.conv_down(image, 32)        # (0.5r, 0.5c, 32)
+            conv2 = self.conv_down(conv1, 64)        # (0.25r, 0.25c, 64)
+            conv3 = self.conv_down(conv2, 128)       # (0.125r, 0.125c, 128)
+            conv4 = self.conv_down(conv3, 256)       # (0.0625r, 0.0625c, 256)
             dense = Flatten()(conv4)
             out = Dense(1)(dense)
             out = Activation('sigmoid')(out)
