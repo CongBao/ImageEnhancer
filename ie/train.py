@@ -84,7 +84,6 @@ def main():
     matplotlib.use('Agg')
     from enhancer import Enhancer
     #from enhancer_gan import Enhancer # under testing
-    #from enhancer_wgan import Enhancer # under testing
     enhancer = Enhancer(**params)
     enhancer.load_data()
     enhancer.build_model()
