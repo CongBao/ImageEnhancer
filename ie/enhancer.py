@@ -119,7 +119,7 @@ class Enhancer(object):
         """ train the model """
         callbacks = []
         callbacks.append(TensorBoard(self.graph_path))
-        callbacks.append(LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 10)))
+        callbacks.append(LearningRateScheduler(lambda e: self.learning_rate * 0.999 ** (e / 20)))
         callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.best.hdf5', save_best_only=True))
         if not self.best_cp:
             callbacks.append(ModelCheckpoint(self.checkpoint_path + 'checkpoint.{epoch:02d}-{val_loss:.2f}.hdf5'))

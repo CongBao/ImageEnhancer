@@ -21,9 +21,10 @@ ACTIVATIONS = ['linear', 'sigmoid', 'tanh', 'relu', 'lrelu', 'prelu', 'elu', 'se
 LEARNING_RATE = 0.001
 BATCH_SIZE = 128
 EPOCH = 50
-ACTIV_FUNC = 'lrelu'
+ACTIV_FUNC = 'relu'
 CORRUPT_TYPE = 'GSN'
 CORRUPT_RATIO = 0.02
+CHECKPOINT_NAME = 'checkpoint.best.hdf5'
 
 def main():
     """ parse parameters from command line and start the training of model """
@@ -39,12 +40,15 @@ def main():
     add_arg('-R', dest='ratio',  type=float, default=CORRUPT_RATIO,    help='ratio of corruption, default %s' % CORRUPT_RATIO)
     add_arg('--graph-path',      dest='graph',      type=str, default=GRAPH_PATH,      help='path to save tensor graphs, default %s' % GRAPH_PATH)
     add_arg('--checkpoint-path', dest='checkpoint', type=str, default=CHECKPOINT_PATH, help='path to save checkpoint files, default %s' % CHECKPOINT_PATH)
+    add_arg('--checkpoint-name', dest='name',       type=str, default=CHECKPOINT_NAME, help='the name of checkpoint file, default %s' % CHECKPOINT_NAME)
     add_arg('--example-path',    dest='example',    type=str, default=EXAMPLE_PATH,    help='path to save example images, default %s' % EXAMPLE_PATH)
+    add_arg('--restore',         dest='restore',    action='store_true',               help='restore model from checkpoint file, default False')
     add_arg('--best-only',       dest='best',       action='store_true',               help='store only checkpoints with best validation results, default False')
     add_arg('--cpu-only',        dest='cpu',        action='store_true',               help='whether use cpu only or not, default False')
     args = parser.parse_args()
     if args.cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    assert len(args.shape) == 3
     assert args.activ in ACTIVATIONS
     assert args.type in CORRUPT_TYPES
     corr = Correction().correct
@@ -52,8 +56,9 @@ def main():
         'img_shape':       tuple(args.shape),
         'img_dir':         corr(args.input),
         'graph_path':      corr(args.graph),
-        'checkpoint_path': corr(args.checkpoint),
         'example_path':    corr(args.example),
+        'checkpoint_path': corr(args.checkpoint),
+        'checkpoint_name': args.name,
         'learning_rate':   args.rate,
         'batch_size':      args.batch,
         'epoch':           args.epoch,
@@ -83,10 +88,13 @@ def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     matplotlib.use('Agg')
     from enhancer import Enhancer
-    #from enhancer_gan import Enhancer # under testing
     enhancer = Enhancer(**params)
     enhancer.load_data()
-    enhancer.build_model()
+    if args.restore:
+        print('Model will be restored from checkpoint file %s' % (params['checkpoint_path'] + params['checkpoint_name']))
+        enhancer.load_model()
+    else:
+        enhancer.build_model()
     try:
         enhancer.train_model()
         enhancer.evaluate_model()
