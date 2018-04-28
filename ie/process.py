@@ -30,6 +30,7 @@ def main():
     args = parser.parse_args()
     if args.cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ''
+    assert len(args.shape) == 3
     corr = Correction().correct
     params = {
         'img_shape':       tuple(args.shape),
