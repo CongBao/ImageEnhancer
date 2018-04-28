@@ -9,4 +9,4 @@ You can use them either to:
 + load your own training data to fine-tuning, or
 + process your corrupted data directly
 
-NOTE: all the pre-trained models using data of shape (128, 128, 3), so you can only train/process on data with the same shape.
+__NOTE: all the pre-trained models using data of shape (128, 128, 3), so you can only train/process on data with the same shape.__

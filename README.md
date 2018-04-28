@@ -84,7 +84,7 @@ by default, both best checkpoint and checkpoints of each epoch will be saved, se
 
     python train.py -i ~/data/images/ -s 128 128 3 --best-only
 
-Restore saved model from checkpoint files and contine training
+Restore saved model from checkpoint files and continue training
 
     python train.py -i ~/data/images/ -s 128 128 3 --checkpoint-path ./checkpoints/ --checkpoint-name checkpoint.best.hdf5 --restore
 
