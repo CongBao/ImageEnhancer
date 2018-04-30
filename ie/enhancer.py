@@ -102,11 +102,12 @@ class Enhancer(object):
 
     def build_model(self):
         """ build a given model """
-        _model = AbstractModel(self.shape['in'], self.activ)
+        channel = self.img_shape[2]
+        _model = AbstractModel(channel, self.activ)
         if self.corrupt_type == 'ZIP':
-            _model = AugmentModel(self.shape['in'], self.activ)
+            _model = AugmentModel(channel, self.activ)
         else:
-            _model = DenoiseModel(self.shape['in'], self.activ)
+            _model = DenoiseModel(channel, self.activ)
         self.model = _model.construct()
 
     def load_model(self):
@@ -170,8 +171,8 @@ class Enhancer(object):
 class AbstractModel(object):
     """ The abstract class of all models """
 
-    def __init__(self, shape, activ):
-        self.shape = shape
+    def __init__(self, channel, activ):
+        self.channel = channel
         self.activ = activ
 
     def activate(self, layer):
@@ -233,23 +234,23 @@ class DenoiseModel(AbstractModel):
     """ the denoise model """
 
     def construct(self):
-        image = Input(shape=self.shape)           # (r, c, 3)
-        conv1 = self.conv(image, 32)              # (r, c, 32)
-        conv2 = self.conv(conv1, 32, True)        # (0.5r, 0.5c, 32)
-        conv3 = self.conv(conv2, 64)              # (0.5r, 0.5c, 64)
-        conv4 = self.conv(conv3, 64, True)        # (0.25r, 0.25c, 64)
-        conv5 = self.conv(conv4, 128)             # (0.25r, 0.25c, 128)
-        conv6 = self.conv(conv5, 128, True)       # (0.125r, 0.125c, 128)
-        deconv6 = self.deconv(conv6, 128)         # (0.125r, 0.125c, 128)
-        deconv5 = self.deconv(deconv6, 128, True) # (0.25r, 0.25c, 128)
-        deconv4 = self.merge(deconv5, conv4, 128) # (0.25r, 0.25c, 128)
-        deconv4 = self.deconv(deconv4, 64)        # (0.25r, 0.25c, 64)
-        deconv3 = self.deconv(deconv4, 64, True)  # (0.5r, 0.5c, 64)
-        deconv2 = self.merge(deconv3, conv2, 64)  # (0.5r, 0.5c, 64)
-        deconv2 = self.deconv(deconv2, 32)        # (0.5r, 0.5c, 32)
-        deconv1 = self.deconv(deconv2, 32, True)  # (r, c, 32)
-        out = self.merge(deconv1, image, 32)      # (r, c, 32)
-        out = self.deconv(out, self.shape[2])     # (r, c, 3)
+        image = Input(shape=(None, None, self.channel)) # (r, c, 3)
+        conv1 = self.conv(image, 32)                    # (r, c, 32)
+        conv2 = self.conv(conv1, 32, True)              # (0.5r, 0.5c, 32)
+        conv3 = self.conv(conv2, 64)                    # (0.5r, 0.5c, 64)
+        conv4 = self.conv(conv3, 64, True)              # (0.25r, 0.25c, 64)
+        conv5 = self.conv(conv4, 128)                   # (0.25r, 0.25c, 128)
+        conv6 = self.conv(conv5, 128, True)             # (0.125r, 0.125c, 128)
+        deconv6 = self.deconv(conv6, 128)               # (0.125r, 0.125c, 128)
+        deconv5 = self.deconv(deconv6, 128, True)       # (0.25r, 0.25c, 128)
+        deconv4 = self.merge(deconv5, conv4, 128)       # (0.25r, 0.25c, 128)
+        deconv4 = self.deconv(deconv4, 64)              # (0.25r, 0.25c, 64)
+        deconv3 = self.deconv(deconv4, 64, True)        # (0.5r, 0.5c, 64)
+        deconv2 = self.merge(deconv3, conv2, 64)        # (0.5r, 0.5c, 64)
+        deconv2 = self.deconv(deconv2, 32)              # (0.5r, 0.5c, 32)
+        deconv1 = self.deconv(deconv2, 32, True)        # (r, c, 32)
+        out = self.merge(deconv1, image, 32)            # (r, c, 32)
+        out = self.deconv(out, self.channel)            # (r, c, 3)
         out = Activation('sigmoid')(out)
         return Model(image, out)
 
@@ -257,24 +258,24 @@ class AugmentModel(AbstractModel):
     """ The augment model """
 
     def construct(self):
-        image = Input(shape=self.shape)           # (0.5r, 0.5c, 3)
-        conv1 = self.conv(image, 32)              # (0.5r, 0.5c, 32)
-        conv2 = self.conv(conv1, 32, True)        # (0.25r, 0.25c, 32)
-        conv3 = self.conv(conv2, 64)              # (0.25r, 0.25c, 64)
-        conv4 = self.conv(conv3, 64, True)        # (0.125r, 0.125c, 64)
-        conv5 = self.conv(conv4, 128)             # (0.125r, 0.125c, 128)
-        conv6 = self.conv(conv5, 128, True)       # (0.0625r, 0.0625c, 128)
-        deconv6 = self.deconv(conv6, 128)         # (0.0625r, 0.0625c, 128)
-        deconv5 = self.deconv(deconv6, 128, True) # (0.125r, 0.125c, 128)
-        deconv4 = self.merge(deconv5, conv4, 128) # (0.125r, 0.125c, 128)
-        deconv4 = self.deconv(deconv4, 64)        # (0.125r, 0.125c, 64)
-        deconv3 = self.deconv(deconv4, 64, True)  # (0.25r, 0.25c, 64)
-        deconv2 = self.merge(deconv3, conv2, 64)  # (0.25r, 0.25c, 64)
-        deconv2 = self.deconv(deconv2, 32)        # (0.25r, 0.25c, 32)
-        deconv1 = self.deconv(deconv2, 32, True)  # (0.5r, 0.5c, 32)
-        deconv0 = self.merge(deconv1, image, 32)  # (0.5r, 0.5c, 32)
-        deconv0 = self.deconv(deconv0, 16)        # (0.5r, 0.5c, 16)
-        deconv0 = self.deconv(deconv0, 16, True)  # (r, c, 16)
-        out = self.deconv(deconv0, self.shape[2]) # (r, c, 3)
+        image = Input(shape=(None, None, self.channel)) # (0.5r, 0.5c, 3)
+        conv1 = self.conv(image, 32)                    # (0.5r, 0.5c, 32)
+        conv2 = self.conv(conv1, 32, True)              # (0.25r, 0.25c, 32)
+        conv3 = self.conv(conv2, 64)                    # (0.25r, 0.25c, 64)
+        conv4 = self.conv(conv3, 64, True)              # (0.125r, 0.125c, 64)
+        conv5 = self.conv(conv4, 128)                   # (0.125r, 0.125c, 128)
+        conv6 = self.conv(conv5, 128, True)             # (0.0625r, 0.0625c, 128)
+        deconv6 = self.deconv(conv6, 128)               # (0.0625r, 0.0625c, 128)
+        deconv5 = self.deconv(deconv6, 128, True)       # (0.125r, 0.125c, 128)
+        deconv4 = self.merge(deconv5, conv4, 128)       # (0.125r, 0.125c, 128)
+        deconv4 = self.deconv(deconv4, 64)              # (0.125r, 0.125c, 64)
+        deconv3 = self.deconv(deconv4, 64, True)        # (0.25r, 0.25c, 64)
+        deconv2 = self.merge(deconv3, conv2, 64)        # (0.25r, 0.25c, 64)
+        deconv2 = self.deconv(deconv2, 32)              # (0.25r, 0.25c, 32)
+        deconv1 = self.deconv(deconv2, 32, True)        # (0.5r, 0.5c, 32)
+        deconv0 = self.merge(deconv1, image, 32)        # (0.5r, 0.5c, 32)
+        deconv0 = self.deconv(deconv0, 16)              # (0.5r, 0.5c, 16)
+        deconv0 = self.deconv(deconv0, 16, True)        # (r, c, 16)
+        out = self.deconv(deconv0, self.channel)        # (r, c, 3)
         out = Activation('sigmoid')(out)
         return Model(image, out)
