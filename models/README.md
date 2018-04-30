@@ -9,4 +9,4 @@ You can use them either to:
 + load your own training data to fine-tuning, or
 + process your corrupted data directly*
 
-* It is recommended to perform fine-tuning on your own data before processing.
+*) It is recommended to perform fine-tuning on your own data before processing.
