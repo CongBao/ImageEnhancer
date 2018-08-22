@@ -1,6 +1,7 @@
 .pyc
 .vscode/
 .vs/
+.idea/
 __pycache__/
 graphs/
 checkpoints/
